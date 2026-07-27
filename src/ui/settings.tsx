@@ -141,7 +141,7 @@ export function SettingsSection() {
         ? bufferToBytes(existingKeyWithWebAuthn.webauthn.credentialId)
         : undefined;
 
-      const response = await host.webauthn.getOrCreatePRF(masterCredIdBytes, 'bulwark-webmail-pgp-true-e2e', 'Master Key for Bulwark PGP Plugin');
+      const response = await host.webauthn.getOrCreate(masterCredIdBytes, 'bulwark-webmail-pgp-true-e2e', 'Master Key for Bulwark PGP Plugin');
       
       const credentialId = bytesToBuffer(response.credentialId);
       const prfSecret = bytesToBuffer(response.prfSecret);
@@ -179,7 +179,7 @@ export function SettingsSection() {
       const firstWebAuthnKey = webauthnKeys[0].webauthn!;
       const masterCredIdBytes = bufferToBytes(firstWebAuthnKey.credentialId);
 
-      const response = await host.webauthn.getOrCreatePRF(masterCredIdBytes);
+      const response = await host.webauthn.getOrCreate(masterCredIdBytes);
       const prfSecret = bytesToBuffer(response.prfSecret);
       
       for (const rec of webauthnKeys) {

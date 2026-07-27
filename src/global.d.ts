@@ -12,7 +12,7 @@ declare module '@plugin-host' {
     importRaw(blob: ArrayBuffer, mailboxRoles: string[], options?: { identityId: string; envelopeRecipients: string[] }): Promise<void>;
   };
   export const webauthn: {
-    getOrCreatePRF(masterCredIdBytes?: number[], rpId?: string, userVisibleName?: string): Promise<{ credentialId: number[]; prfSecret: number[] }>;
+    getOrCreate(masterCredIdBytes?: number[], rpId?: string, userVisibleName?: string): Promise<{ credentialId: number[]; prfSecret: number[] }>;
   };
   export const upfiles: {
     get(fileId: string): Promise<File>;
