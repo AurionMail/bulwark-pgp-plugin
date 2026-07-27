@@ -87,6 +87,7 @@ export function ComposerToolbar() {
 
     h('button', {
       type: 'button',
+      'aria-pressed': !!intent.sign,
       style: pill(intent.sign),
       className: 'composer-btn',
       title: host.i18n.t('toolbar.action.sign_title'),
@@ -99,6 +100,7 @@ export function ComposerToolbar() {
 
     h('button', {
       type: 'button',
+      'aria-pressed': !!intent.encrypt,
       style: pill(intent.encrypt),
       className: 'composer-btn',
       title: host.i18n.t('toolbar.action.encrypt_title'),
