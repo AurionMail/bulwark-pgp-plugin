@@ -300,3 +300,18 @@ export interface Timestamp {
   '@type': 'Timestamp';
   utc: string;
 }
+
+export function generateNumericRecoveryCode(): { codeFormatted: string; codeRaw: string } {
+  const bytes = new Uint8Array(16);
+  crypto.getRandomValues(bytes);
+  let digits = '';
+  for (let i = 0; i < bytes.length; i++) {
+    digits += (bytes[i] % 10).toString();
+  }
+  const formatted = digits.match(/.{1,4}/g)?.join('-') || digits;
+  
+  return {
+    codeFormatted: formatted,
+    codeRaw: digits
+  };
+}

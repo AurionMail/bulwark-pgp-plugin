@@ -5,7 +5,8 @@ const h = React.createElement;
 const { useState, useEffect, useCallback, useRef } = React;
 import {
   saveKeyRecord, listKeyRecords, deleteKeyRecord, listPublicCerts, deletePublicCert,
-  KeyRecord, PublicCert, exportPluginData, importPluginData
+  KeyRecord, PublicCert, exportPluginData, importPluginData,
+  getKeyRecord
 } from '../storage.ts';
 
 import { importOpenPgpPrivateKey, importOpenPgpPublicKey, unlockPrivateKey } from '../pgp/import.ts';
@@ -20,7 +21,7 @@ import {
   subscribeToKeyUpdates
 } from '../pgp/session-broadcast.ts';
 import { uploadKey, requestVerify, lookup } from '../pgp/server.ts';
-import { bufferToBytes, bytesToBuffer, generateSalt } from '../util.ts';
+import { bufferToBytes, bytesToBuffer, generateNumericRecoveryCode, generateSalt } from '../util.ts';
 
 export function SettingsSection() {
   const [keys, setKeys] = useState<KeyRecord[]>([]);
@@ -244,6 +245,116 @@ export function SettingsSection() {
       setBusy(false);
     }
   }
+
+  async function initiateRecoveryUnlock(recID: string) {
+    // 1. Récupération de la clé de secours ET de la clé originale
+    const recoveryRec = await getKeyRecord(recID + '_recovery');
+    const originalRec = await getKeyRecord(recID);
+
+    if (!recoveryRec || !originalRec) {
+      host.toast.error(host.i18n.t('settings.error.key_not_found'));
+      return;
+    }
+
+    const identity = originalRec.email || host.i18n.t('prompt.unlock_key.fallback_identity');
+
+    // 2. Prompt for recovery code
+    const recoveryResult = await host.ui.prompt({
+      title: 'Emergency Recovery Unlock',
+      message: `Enter your numeric recovery code for ${identity}:`,
+      fields: [{ 
+        name: 'recoveryCode', 
+        label: 'Recovery Code (e.g., 4829-1038-...)', 
+        type: 'text', 
+        required: true 
+      }]
+    });
+
+    if (!recoveryResult || !recoveryResult.recoveryCode) return;
+
+    const cleanCode = recoveryResult.recoveryCode.replace(/[\s-]/g, '');
+
+    setBusy(true);
+    try {
+      // 3. Unlock using the recovery record and clean code
+      const { unlockedPrivateKey } = await unlockPrivateKey(recoveryRec, cleanCode);
+
+      // 4. Prompt for new passphrase
+      const newPassResult = await host.ui.prompt({
+        title: 'Set New Passphrase',
+        message: 'Recovery successful! Please set a new passphrase for your key:',
+        fields: [
+          { 
+            name: 'newPassphrase', 
+            label: 'New Passphrase', 
+            type: 'password', 
+            required: true 
+          },
+          { 
+            name: 'confirmPassphrase', 
+            label: 'Confirm Passphrase', 
+            type: 'password', 
+            required: true 
+          }
+        ]
+      });
+
+      if (!newPassResult || !newPassResult.newPassphrase) {
+        host.toast.error("Passphrase reset canceled.");
+        return;
+      }
+
+      if (newPassResult.newPassphrase !== newPassResult.confirmPassphrase) {
+        host.toast.error("Passphrases do not match.");
+        return;
+      }
+
+      const newPass = newPassResult.newPassphrase;
+
+      // 5. Re-encrypt internal PGP key packets with the NEW passphrase
+      const parsedKey = await openpgp.readKey({ armoredKey: unlockedPrivateKey });
+      // unlockedPrivateKey est déjà déchiffrée au niveau PGP, on ré-encrypte directement avec le nouveau pass
+      const reencryptedPgpKey = await openpgp.encryptKey({
+        privateKey: parsedKey as openpgp.PrivateKey,
+        passphrase: newPass
+      });
+      const newArmoredPgpKey = reencryptedPgpKey.armor();
+
+      // 6. Import and update the ORIGINAL key record
+      const { keyRecord: updatedRecord } = await importOpenPgpPrivateKey(newArmoredPgpKey, newPass, newPass);
+
+      // On restaure l'ID original exact et les flags/propriétés de la clé d'origine
+      updatedRecord.id = originalRec.id;
+      updatedRecord.recoverable = true;
+      if (originalRec.default) {
+        updatedRecord.default = true;
+      }
+
+      await saveKeyRecord(updatedRecord);
+
+      // 7. Re-unlock for active session using updated record & new pass
+      const unlockedSession = await unlockPrivateKey(updatedRecord, newPass);
+
+      broadcastUnlockKey({ 
+        id: updatedRecord.id, 
+        unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
+        signingKey: unlockedSession.signingKey, 
+        decryptionKey: unlockedSession.decryptionKey,
+        aesKey: unlockedSession.aesKey
+      });
+
+      host.toast.success("Your passphrase has been successfully reset!");
+      await refresh();
+
+    } catch (err) {
+      const error = err as Error;
+      host.toast.error(host.i18n.t('settings.error.unlock_failed', { 
+        message: error?.message ? error.message : "Invalid recovery code." 
+      }));
+    } finally {
+      setBusy(false);
+    }
+  }
   async function handleUploadKey(c: PublicCert) {
     setBusy(true);
     try {
@@ -421,6 +532,7 @@ export function SettingsSection() {
     
     setBusy(true);
     try {
+      const { codeFormatted, codeRaw } = generateNumericRecoveryCode();
       const { privateKey, revocationCertificate } = await openpgp.generateKey({
         type: 'ecc',
         curve: 'ed25519Legacy',
@@ -429,9 +541,58 @@ export function SettingsSection() {
         format: 'armored'
       });
       
-      host.ui.downloadFile({filename: `revocation_${gen.email}.asc`, content: String(revocationCertificate), contentType: 'text/plain'});
       const { keyRecord } = await importOpenPgpPrivateKey(String(privateKey), gen.pass, gen.pass);
-      await saveKeyRecord(keyRecord);
+      await saveKeyRecord({ ...keyRecord, recoverable: true });
+      console.log('codeRaw:', codeRaw);
+
+
+      // 2. Déchiffrement complet de la clé PGP en mémoire (pour obtenir la clé PGP en clair)
+    const parsedKey = await openpgp.readKey({ armoredKey: String(privateKey) });
+    if (!parsedKey.isPrivate()) {
+      throw new Error('The provided block is a public key, not a private key');
+    }
+
+    
+    const decryptedPgpKey = await openpgp.decryptKey({
+      privateKey: parsedKey,
+      passphrase: gen.pass
+    });
+
+    const unencryptedPgpArmored = decryptedPgpKey.armor(); // Clé PGP 100% en clair
+    const { keyRecord: recoveryRecord } = await importOpenPgpPrivateKey(
+      unencryptedPgpArmored, 
+      codeRaw, // Passphrase AES de stockage
+      ''       // Pas de passphrase PGP interne
+    );
+
+    await saveKeyRecord({ 
+      ...recoveryRecord, 
+      id: `${keyRecord.id}_recovery`, 
+      recovery: true, 
+      recoverable: false 
+    });
+
+      const backupContent = 
+` ===================================================================
+  PGP RECOVERY & REVOCATION FILE - ${gen.email}
+  ===================================================================
+
+  [ EMERGENCY NUMERIC RECOVERY CODE ]
+  Use these digits if you forget your main passphrase. Keep them secret!
+
+  Code: ${codeFormatted}
+
+  ===================================================================
+
+  [ OPENPGP REVOCATION CERTIFICATE ]
+  Use this block to revoke your key if it gets compromised or lost.
+
+  ${revocationCertificate}`;
+      host.ui.downloadFile({
+        filename: `backup_pgp_${gen.email}.txt`, 
+        content: backupContent, 
+        contentType: 'text/plain'
+      });
       
       host.toast.success(host.i18n.t('settings.success.key_generated'));
       setGen({ open: false, name: "", email: "", pass: "" });
@@ -548,7 +709,7 @@ export function SettingsSection() {
             host.i18n.t('settings.action.unlock_all_webauthn')
           ]),
 
-          ...keys.map((rec) => h('div', { key: rec.id, style: { ...card, display: 'flex', flexDirection: 'column', gap: '10px' } },
+          ...keys.filter((rec) => !rec.recovery).map((rec) => h('div', { key: rec.id, style: { ...card, display: 'flex', flexDirection: 'column', gap: '10px' } },
             h('div', { style: { display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' } },
               h('div', { style: { display: 'flex', alignItems: 'flex-start', gap: '12px' } },
                 h('input', {
@@ -611,6 +772,26 @@ export function SettingsSection() {
                         h('path', { d: 'M240-160h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM240-160v-400 400Zm0 80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h280v-80q0-83 58.5-141.5T720-920q83 0 141.5 58.5T920-720h-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80h120q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Z' })
                       )
                     ),
+                  !unlocked[rec.id] && rec.recoverable ? 
+                  h('button', {
+                      type: 'button',
+                      style: { ...btn, color: 'var(--color-foreground)' },
+                      className: 'lock-btn',
+                      title: host.i18n.t('settings.action.unlock'),
+                      disabled: busy,
+                      onClick: () => initiateRecoveryUnlock(rec.id),
+                    },
+                      h('svg', {
+                        xmlns: 'http://www.w3.org/2000/svg',
+                        width: '1rem',
+                        height: '1rem',
+                        viewBox: '0 -960 960 960',
+                        fill: 'currentColor',
+                        'aria-hidden': 'true'
+                      },
+                      h('path', { d: 'M420-440v60q0 17 11.5 28.5T460-340h40q17 0 28.5-11.5T540-380v-60h60q17 0 28.5-11.5T640-480v-40q0-17-11.5-28.5T600-560h-60v-60q0-17-11.5-28.5T500-660h-40q-17 0-28.5 11.5T420-620v60h-60q-17 0-28.5 11.5T320-520v40q0 17 11.5 28.5T360-440h60Zm47 355q-6-1-12-3-135-45-215-166.5T160-516v-189q0-25 14.5-45t37.5-29l240-90q14-5 28-5t28 5l240 90q23 9 37.5 29t14.5 45v189q0 140-80 261.5T505-88q-6 2-12 3t-13 1q-7 0-13-1Zm13-79q104-33 172-132t68-220v-189l-240-90-240 90v189q0 121 68 220t172 132Zm0-316Z' })
+                    )
+                    ): '',
 
                 h('button', {
                   type: 'button',
