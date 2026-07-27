@@ -1,4 +1,5 @@
 import host from '@plugin-host';
+import * as openpgp from 'openpgp';
 import React from 'react'
 const h = React.createElement;
 const { useState, useEffect, useCallback, useRef } = React;
@@ -32,6 +33,7 @@ export function SettingsSection() {
   const certFileRef = useRef<HTMLInputElement | null>(null);
   const jsonFileRef = useRef<HTMLInputElement | null>(null);
   const [searchEmail, setSearchEmail] = useState<string>('');
+  const [gen, setGen] = useState({ open: false, name: '', email: '', pass: '' });
 
   
   const refresh = useCallback(async () => {
@@ -411,6 +413,35 @@ export function SettingsSection() {
       setBusy(false);
     }
   }
+  async function handleGenerateKey() {
+    if (!gen.email || !gen.pass) {
+      host.toast.error(host.i18n.t('settings.error.missing_fields'));
+      return;
+    }
+    
+    setBusy(true);
+    try {
+      const { privateKey, revocationCertificate } = await openpgp.generateKey({
+        type: 'ecc',
+        curve: 'ed25519Legacy',
+        userIDs: [{ name: gen.name, email: gen.email }],
+        passphrase: gen.pass,
+        format: 'armored'
+      });
+      
+      host.ui.downloadFile({filename: `revocation_${gen.email}.asc`, content: String(revocationCertificate), contentType: 'text/plain'});
+      const { keyRecord } = await importOpenPgpPrivateKey(String(privateKey), gen.pass, gen.pass);
+      await saveKeyRecord(keyRecord);
+      
+      host.toast.success(host.i18n.t('settings.success.key_generated'));
+      setGen({ open: false, name: "", email: "", pass: "" });
+      await refresh();
+    } catch (err: any) {
+      host.toast.error(host.i18n.t('settings.error.generic_failure', { message: err.message }));
+    } finally {
+      setBusy(false);
+    }
+  }
 
   return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '720px' } },
     h('style', null, `
@@ -637,38 +668,43 @@ export function SettingsSection() {
         ),
 
       h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '12px' } },
-        h('input', { 
-          ref: fileRef, 
-          type: 'file', 
-          accept: '.asc,.key,.pgp', 
-          style: { display: 'none' },
-          onChange: handleFileChange 
-        }),
-        h('button', { 
-          type: 'button', 
-          className: 'composer-btn',
-          style: { width: '100%' },
-          disabled: busy, 
-          onClick: () => fileRef.current && fileRef.current.click() 
-        }, [
-          h('svg', { 
-            xmlns: 'http://www.w3.org/2000/svg', 
-            width: '1rem', 
-            height: '1rem', 
-            viewBox: '0 0 24 24', 
-            fill: 'none', 
-            stroke: 'currentColor', 
-            strokeWidth: '2', 
-            strokeLinecap: 'round', 
-            strokeLinejoin: 'round', 
-            style: { marginRight: '0.5rem' },
-            'aria-hidden': 'true' 
-          }, [
-            h('path', { d: 'M5 12h14' }),
-            h('path', { d: 'M12 5v14' })
-          ]),
-          host.i18n.t('settings.add_private_key')
-        ])
+        h('input', { ref: fileRef, type: 'file', accept: '.asc,.key,.pgp', style: { display: 'none' }, onChange: handleFileChange }),
+        h('div', { style: { display: 'flex', gap: '8px' } },
+          h('button', { 
+            type: 'button', className: 'composer-btn', style: { flex: 1 }, disabled: busy, 
+            onClick: () => fileRef.current && fileRef.current.click() 
+          }, host.i18n.t('settings.add_private_key')),
+          
+          h('button', {
+            type: 'button', className: 'composer-btn', style: { flex: 1 }, disabled: busy,
+            onClick: () => setGen({ ...gen, open: !gen.open })
+          }, host.i18n.t('settings.generate_key'))
+        ),
+
+        
+        gen.open && h('div', { style: { ...card, display: 'flex', flexDirection: 'column', gap: '10px', marginTop: '8px', backgroundColor: 'var(--color-muted, #f8fafc)' } },
+          h('div', { style: { fontWeight: 600, fontSize: '14px' } }, host.i18n.t('settings.create_key_pair')),
+          h('input', {
+            type: 'text', placeholder: host.i18n.t('settings.full_name'), required: true,
+            value: gen.name, onChange: (e) => setGen({ ...gen, name: (e.target as HTMLInputElement).value }),
+            style: { height: '2.25rem', padding: '0 0.75rem', borderRadius: '0.375rem', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-background, #ffffff)', outline: 'none', }
+          }),
+          h('input', {
+            type: 'email', placeholder: host.i18n.t('settings.email'), required: true,
+            value: gen.email, onChange: (e) => setGen({ ...gen, email: (e.target as HTMLInputElement).value }),
+            style: { height: '2.25rem', padding: '0 0.75rem', borderRadius: '0.375rem', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-background, #ffffff)', outline: 'none', }
+          }),
+          h('input', {
+            type: 'password', placeholder: host.i18n.t('settings.passphrase'), required: true,
+            value: gen.pass, onChange: (e) => setGen({ ...gen, pass: (e.target as HTMLInputElement).value }),
+            style: { height: '2.25rem', padding: '0 0.75rem', borderRadius: '0.375rem', border: '1px solid var(--color-border)', backgroundColor: 'var(--color-background, #ffffff)', outline: 'none', }
+          }),
+          h('button', {
+            type: 'button', className: 'composer-btn',
+            disabled: busy || !gen.email || !gen.pass,
+            onClick: handleGenerateKey,
+          }, host.i18n.t('settings.generate_revocation'))
+        )
       ),
     ),
 

@@ -229,8 +229,15 @@
       "contact.capability_sign": "Signature",
       "contact.capability_encrypt": "Encryption",
       "contact.download_title": "Download public key (.asc)",
-      "contact.download_button": "Download"
-
+      "contact.download_button": "Download",
+      "settings.success.key_generated" : "Key pair generated and revocation certificate downloaded!",
+      "settings.error.missing_fields" : "Email and passphrase are required.",
+      "settings.generate_key" : "Generate a new key pair",
+      "settings.create_key_pair" : "Create a new key pair",
+      "settings.generate_revocation" : "Generate and download revocation certificate",
+      "settings.passphrase": "Passphrase",
+      "settings.full_name": "Full Name",
+      "settings.email": "Email"
     }
   }
 }
