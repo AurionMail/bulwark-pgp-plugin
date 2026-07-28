@@ -414,11 +414,34 @@ export function SettingsSection() {
       confirmLabel: host.i18n.t('settings.action.delete'),
     });
     if (!ok) return;
-    
-    broadcastLockKey();
-    await deleteKeyRecord(rec.id);
-    host.toast.success(host.i18n.t('settings.success.key_deleted'));
-    await refresh();
+
+    const reallyOk = await host.ui.prompt({
+      title: host.i18n.t('settings.confirm.delete_private_title'),
+      message: host.i18n.t('settings.confirm.delete_private_msg', { identity: rec.email || host.i18n.t('settings.label.generic_identity') }),
+      confirmLabel: host.i18n.t('settings.action.delete'),
+      fields: [{
+        name: 'confirmText',
+        label: host.i18n.t('settings.confirm.delete_private_confirm_label') + rec.email,
+        type: 'text',
+        required: true,
+      }]
+    });
+
+      if (reallyOk && reallyOk.confirmText === rec.email) {
+        broadcastLockKey();
+        await deleteKeyRecord(rec.id);
+        if (rec.recoverable) await deleteKeyRecord(rec.id + '_recovery');
+        //delete public jey associated by serahcing by email
+      if (rec.email) {
+        const publicCerts = await listPublicCerts();
+        const associatedCerts = publicCerts.filter(c => c.email === rec.email);
+        for (const cert of associatedCerts) {
+          await deletePublicCert(cert.id);
+        }
+      }
+      host.toast.success(host.i18n.t('settings.success.key_deleted'));
+      await refresh();
+    }
   }
 
   async function importCertFile() {
