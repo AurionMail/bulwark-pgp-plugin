@@ -29,17 +29,17 @@ export interface KeyRecord {
   encryptedPrivateKey: ArrayBuffer; 
   salt: ArrayBuffer;                
   iv: ArrayBuffer;                  
-  kdfIterations: number;            
+  kdfIterations: number;//used for legacy PBKDF2 key derivation
   webauthn?: {
     credentialId: ArrayBuffer;     
     encryptedPassphrase: ArrayBuffer; 
     iv: ArrayBuffer;               
-  };          
+  };
   issuer: string;
   subject: string;
-  serialNumber: string;             
-  notBefore: string;                
-  notAfter: string | null;          
+  serialNumber: string;
+  notBefore: string;
+  notAfter: string | null;
   fingerprint: string;
   algorithm: string;
   capabilities: {
@@ -50,6 +50,11 @@ export interface KeyRecord {
   recovery?: boolean;
   recoverable?: boolean;
   aesSalt?: ArrayBuffer;
+  argon2Params?: {
+    memoryCost: number; // ex: 65536 (64 MB)
+    timeCost: number;   // ex: 3
+    parallelism: number;// ex: 4
+  };
 }
 
 export interface PublicCert {

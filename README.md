@@ -31,7 +31,7 @@ For more details, refers to [DOCS.md](DOCS.md) file.
 ## Security & Threat Model
 
 - **Privileged Tier:** The plugin declares `tier: "privileged"` + `crypto:full`. Per `resolvePluginTier`, the same-origin tier is only granted to a **signed, admin-approved (managed)** bundle after high-risk consent. Self-uploaded copies are refused (not downgraded)—it must be signed and shipped through the admin channel.
-- **Keys at Rest:** Private keys are re-wrapped with AES-256-GCM under a PBKDF2 (SHA-256, 600,000 iterations) key derived from your custom passphrase. They are stored in IndexedDB; raw private key bytes are never persisted.
+- **Keys at Rest:** Private keys are re-wrapped with AES-256-GCM under an argon2id + generated salt (default) or PBKDF2 (SHA-256, 600,000 iterations, legacy) key derived from your custom passphrase. They are stored in IndexedDB; raw private key bytes are never persisted.
 - **Keys in Use:** Unlocking a key stores it strictly in RAM. It is **never** persisted to IndexedDB or written to disk during the active session.
 - **XSS & Isolation Limit:** The background part of the plugin acts like a service worker, communicating keys to other sandboxed components. 
   * *Note on Threat Model:* If an attacker successfully executes arbitrary JavaScript in the client (via XSS or a malicious third-party plugin), they could potentially intercept keys in memory. This is an inherent limitation of web-based cryptography. However, our 100% RAM isolation significantly reduces the attack surface compared to disk-bound alternatives that write active keys to browser storage.

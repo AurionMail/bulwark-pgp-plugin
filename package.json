@@ -9,6 +9,7 @@
     "package": "npm run build && cp manifest.json dist/ && cd dist && zip -X ../pgpe2e.zip manifest.json index.js"
   },
   "dependencies": {
+    "hash-wasm": "^4.12.0",
     "mimetext": "^3.0.28",
     "openpgp": "^6.3.1"
   },

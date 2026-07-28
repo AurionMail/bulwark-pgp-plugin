@@ -1,4 +1,5 @@
 import * as openpgp from 'openpgp';
+import { argon2id } from 'hash-wasm';
 import { ContactEmail, generateUUID } from '../util.ts';
 import { extractKeyInfo } from './key-utils.ts';
 import { KeyRecord, listPublicCerts, persistPassphraseToDangerousStorage, savePublicCert } from '../storage.ts';
@@ -22,6 +23,13 @@ interface UnlockResult {
   decryptionKey: string;
   aesKey?: CryptoKey;
 }
+
+const ARGON2_DEFAULTS = {
+  memoryCost: 65536, // 64 Mo RAM
+  timeCost: 3,       // 3 iterations
+  parallelism: 4,    // 4 threads
+  hashLength: 32     // 256 bits
+};
 
 // ── Main Core Functions ───────────────────────────────────────────────
 
@@ -67,7 +75,7 @@ export async function importOpenPgpPrivateKey(
 
   // 3. Encrypt private key for at-rest storage
   const textBytes = new TextEncoder().encode(armoredPrivateKeyText);
-  const { encrypted, salt, iv } = await encryptPrivateKeyData(textBytes.buffer, storagePassphrase);
+  const { encrypted, salt, iv, argon2Params } = await encryptPrivateKeyData(textBytes.buffer, storagePassphrase);
 
   // 4. Generate KeyRecord
   const keyRecord: KeyRecord = {
@@ -77,6 +85,7 @@ export async function importOpenPgpPrivateKey(
     encryptedPrivateKey: encrypted,
     salt,
     iv,
+    argon2Params,
     kdfIterations: KDF_ITERATIONS,
     issuer: keyInfo.issuer || 'Self-Signed (OpenPGP Web of Trust)',
     subject: keyInfo.subject || `OpenPGP User <${email}>`,
@@ -121,7 +130,12 @@ export async function importOpenPgpPrivateKey(
  */
 export async function unlockPrivateKey(record: KeyRecord, passphrase: string, automated?: boolean): Promise<UnlockResult> {
   // 1. Dérivation de la clé de déballage pour la clé PGP
-  const wrappingKey = await deriveWrappingKey(passphrase, record.salt, record.kdfIterations);
+  const wrappingKey = record.argon2Params
+    ? await deriveWrappingKeyArgon2(passphrase, record.salt, {
+        ...ARGON2_DEFAULTS,
+        ...record.argon2Params
+      })
+    : await deriveWrappingKey(passphrase, record.salt, record.kdfIterations);
 
   let rawTextBytes: ArrayBuffer;
   try {
@@ -260,10 +274,56 @@ async function deriveWrappingKey(passphrase: string, salt: ArrayBuffer, iteratio
   );
 }
 
-async function encryptPrivateKeyData(pkcs8Bytes: ArrayBuffer, passphrase: string): Promise<EncryptedData> {
+async function deriveWrappingKeyArgon2(
+  passphrase: string,
+  salt: ArrayBuffer,
+  params = ARGON2_DEFAULTS
+): Promise<CryptoKey> {
+  // Dérivation de la clé brute via WebAssembly
+  const rawKeyHex = await argon2id({
+    password: passphrase,
+    salt: new Uint8Array(salt),
+    parallelism: params.parallelism,
+    iterations: params.timeCost,
+    memorySize: params.memoryCost,
+    hashLength: params.hashLength,
+    outputType: 'hex'
+  });
+
+  // Convertit Hex -> Uint8Array
+  const rawKeyBytes = new Uint8Array(
+    rawKeyHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
+  );
+
+  // Importe la clé dérivée dans WebCrypto API pour AES-GCM
+  return crypto.subtle.importKey(
+    'raw',
+    rawKeyBytes,
+    { name: 'AES-GCM' },
+    false,
+    ['encrypt', 'decrypt']
+  );
+}
+
+
+async function encryptPrivateKeyDataLegacy(pkcs8Bytes: ArrayBuffer, passphrase: string): Promise<EncryptedData> {
   const salt = crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer;
   const iv = crypto.getRandomValues(new Uint8Array(12)).buffer as ArrayBuffer;
   const wrappingKey = await deriveWrappingKey(passphrase, salt, KDF_ITERATIONS);
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, pkcs8Bytes);
   return { encrypted, salt, iv };
+}
+
+async function encryptPrivateKeyData(
+  pkcs8Bytes: ArrayBuffer,
+  passphrase: string
+): Promise<EncryptedData & { argon2Params: typeof ARGON2_DEFAULTS }> {
+  // Génération d'un sel unique de 16 octets
+  const salt = crypto.getRandomValues(new Uint8Array(16)).buffer as ArrayBuffer;
+  const iv = crypto.getRandomValues(new Uint8Array(12)).buffer as ArrayBuffer;
+
+  const wrappingKey = await deriveWrappingKeyArgon2(passphrase, salt, ARGON2_DEFAULTS);
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, pkcs8Bytes);
+
+  return { encrypted, salt, iv, argon2Params: ARGON2_DEFAULTS };
 }
