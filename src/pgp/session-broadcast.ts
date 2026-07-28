@@ -147,7 +147,7 @@ export function checkIsKeyUnlocked(): Promise<boolean> {
     const timeout = setTimeout(() => {
       channel.close();
       resolve(false);
-    }, 250);
+    }, 300);
 
     channel.onmessage = (event: MessageEvent<SessionMessage>) => {
       if (event.data.type === 'PONG_STATUS' && event.data.requestId === requestId) {

@@ -19,6 +19,9 @@ declare module '@plugin-host' {
     save(formerId: string, file: File): Promise<string>;
     
   };
+  export const admin:{
+    getConfig(value?: string): Promise<any>;
+  }
   export const log: {
     info(msg: string, ...args: any[]): void;
     warn(msg: string, ...args: any[]): void;

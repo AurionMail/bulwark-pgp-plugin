@@ -4,11 +4,11 @@ import { pgpEncrypt } from '../pgp/encrypt.ts';
 import {
    getDefaultPublicKeyForEncryption
 } from '../storage.ts';
-import {settings} from '../shared.ts';
+import {config, settings} from '../shared.ts';
  
  
  export async function onBeforeBlobUpload(fileId: string) {
-  if(settings().encryptDrafts !== true) return fileId;
+  if(settings().encryptDrafts !== true && await config('forceDraftAndAttachmentsEncryption') !== true) return fileId;
   const file = await host.upfiles.get(fileId);
   if (!file) return;
   // Get the pub key

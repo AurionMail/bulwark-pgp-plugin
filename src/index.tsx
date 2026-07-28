@@ -6,7 +6,7 @@
 import {EmailSecuBanner, EmailBanner} from './ui/banners.tsx';
 import {SettingsSection} from './ui/settings.tsx';
 import {ComposerToolbar} from './ui/composer-toolbar.tsx';
-import {settings} from './shared.ts';
+import {config, settings} from './shared.ts';
 import {onRenderEmailBody} from './hooks/onRenderEmailBody.ts';
 import {onBeforeDraftAutoSave} from './hooks/onBeforeDraftAutoSave.ts';
 import {onBeforeEditDraft} from './hooks/onBeforeEditDraft.ts';
@@ -19,6 +19,7 @@ import { onEmailsFetched } from './hooks/onEmailsFetched.ts';
 import { askForDefaultKeyPass } from './hooks/activate.ts';
 import { onRecipientChipsChange } from './hooks/onRecipientChipsChange.ts';
 import { ContactCrypto } from './ui/contact.tsx';
+import { getDefaultKeyRecord } from './storage.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -99,7 +100,16 @@ export async function activate(api :any) {
   initBackgroundSessionListener();
   
   api.log.info('OpenPGP plugin activated with memory-only session management.');
-  if(settings().askForDefaultKeyPassOnActivated){
+  if(await config('forceEncryption') === true && !(await getDefaultKeyRecord())){
+    const result = await api.ui.confirm({
+      title: api.i18n.t('prompt.no_default_key.title'),
+      message: api.i18n.t('prompt.no_default_key.message'),
+      danger: true,
+      confirmLabel: api.i18n.t('prompt.no_default_key.confirm_label')
+    });
+  }
+  console.warn(await config('blockUntilDefaultKeyIsAvailable'));
+  if(settings().askForDefaultKeyPassOnActivated || await config('blockUntilDefaultKeyIsAvailable') === true){
       await askForDefaultKeyPass();
   }
 }

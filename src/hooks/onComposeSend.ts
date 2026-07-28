@@ -6,12 +6,12 @@ import { buildMimeMessage, wrapAsPgpMimeEncrypted, wrapAsPgpMimeSigned } from '.
 import { pgpSignDetached } from '../pgp/pgp-sign.ts';
 import { pgpEncrypt } from '../pgp/encrypt.ts';
 import { clearArmoredPrivateKeyToPrivateKey } from '../util.ts';
-import { KeyRecord, listKeyRecords } from '../storage.ts';
+import { getDefaultKeyRecord, KeyRecord, listKeyRecords } from '../storage.ts';
 
 import {emailsOf, bytesArrayBuffer} from '../util.ts';
-import { INTENT_KEY, settings} from '../shared.ts';
+import { config, INTENT_KEY, settings} from '../shared.ts';
 import { isCapable } from '../index.tsx';
-import { fetchKeyFromBackground } from '../pgp/session-broadcast.ts';
+import { checkIsKeyUnlocked, fetchKeyFromBackground } from '../pgp/session-broadcast.ts';
 import { recipientKeysFor } from '../pgp/key-utils.ts';
 
 
@@ -96,6 +96,15 @@ async function fetchAttachments(req: ComposeRequest) {
     
 export async function onComposeSend(req: ComposeRequest): Promise<boolean | undefined> {
   if (!req || typeof req !== 'object') return undefined;
+
+  if(await config('forceEncryption') === true && !(await getDefaultKeyRecord())){
+    host.toast.error(host.i18n.t('prompt.no_default_key.message_sending'));
+    return false;
+  }
+  if(await config('blockUntilDefaultKeyIsAvailable') === true && !(await checkIsKeyUnlocked())){
+    host.toast.error(host.i18n.t('prompt.block_until_default_key_is_available.message_sending'));
+    return false;
+  }
 
   const { sign, encrypt } = await resolveIntent(req);
   if (!sign && !encrypt) return undefined;

@@ -4,7 +4,7 @@ import {  generateUUID } from '../util.ts';
 import {
   getDefaultPublicKeyForEncryption
 } from '../storage.ts';
-import {settings} from '../shared.ts';
+import {config, settings} from '../shared.ts';
 
 interface AlmostSavedDraft{
    to: string[],
@@ -21,7 +21,7 @@ interface AlmostSavedDraft{
 }
 
  export async function onBeforeDraftAutoSave(draft: AlmostSavedDraft): Promise<AlmostSavedDraft> {
-  if(settings().encryptDrafts !== true) return draft;
+  if(settings().encryptDrafts !== true && await config('forceDraftAndAttachmentsEncryption') !== true) return draft;
 
   const key = await getDefaultPublicKeyForEncryption();
   if(!key) return draft; // If no key is found, return the draft as is

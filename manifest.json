@@ -23,7 +23,8 @@
     "ui:download-file",
     "http:fetch",
     "contacts:read",
-    "contacts:write"
+    "contacts:write",
+    "admin:config"
   ],
   "httpOrigins": [
     "https://keys.openpgp.org"
@@ -32,6 +33,32 @@
   "minAppVersion": "1.7.8",
   "icon": "media/icon.svg",
   "banner": "media/banner.svg",
+  "configSchema": {
+    "forceEncryption": {
+      "type": "boolean",
+      "label": "Force Encryption",
+      "description": "Force users to add/generate a key before they can send an email to a recipient. This is useful for organizations that want to enforce end-to-end encryption.",
+      "default": false
+    },
+    "forceDraftAndAttachmentsEncryption": {
+      "type": "boolean",
+      "label": "Force Encryption of Drafts and Attachments  ",
+      "description": "Force users to encrypt drafts and attachments. This is useful for organizations that want to enforce end-to-end encryption.",
+      "default": false
+    },
+    "blockUntilDefaultKeyIsAvailable": {
+      "type": "boolean",
+      "label": "Block until users' default key is available",
+      "description": "Prevent sending emails until their default key is available. Automatically enable 'Ask for default key on booting'",
+      "default": false
+    },
+    "allowPersistentKeys": {
+      "type": "boolean",
+      "label": "Allow persistent keys",
+      "description": "Allow users to activate the persistent key feature (unlocked keys stored in indexedDB encrypted with a non extractible webCrypto key).",
+      "default": false
+    }
+  },
   "settingsSchema": {
     "autoImportSignerCerts": {
       "type": "boolean",
@@ -237,7 +264,12 @@
       "settings.generate_revocation" : "Generate and download revocation certificate",
       "settings.passphrase": "Passphrase",
       "settings.full_name": "Full Name",
-      "settings.email": "Email"
+      "settings.email": "Email",
+      "prompt.no_default_key.title": "No default key available",
+      "prompt.no_default_key.message": "Your organisation has enabled the 'Force Encryption' option, but you do not have a default key set. Please import or generate a key in OpenPGP settings to continue. You will not be able to send emails until you have a default key.",
+      "prompt.no_default_key.confirm_label": "Go to OpenPGP Settings",
+      "prompt.no_default_key.message_sending": "Your organisation has enabled the 'Force Encryption' option, but you do not have a default key set. Please import or generate a key in OpenPGP settings to continue. You will not be able to send emails until you have a default key. This email was NOT sent.",
+      "prompt.block_until_default_key_is_available.message_sending": "Your organisation has enabled the 'Block until default key is available' option, but your default key is not unlocked. Please unlock your default key in OpenPGP settings to continue. You will not be able to send emails until your default key is unlocked. This email was NOT sent."
     }
   }
 }

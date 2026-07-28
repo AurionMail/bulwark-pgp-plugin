@@ -9,3 +9,7 @@ export const AES_KEY_LENGTH = 256;
 export function settings() {
   return host.plugin?.settings || {};
 }
+
+export async function config(value?: string): Promise<any> { 
+  return await host.admin.getConfig(value) || undefined;
+}

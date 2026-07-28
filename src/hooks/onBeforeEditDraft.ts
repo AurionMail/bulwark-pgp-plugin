@@ -1,11 +1,11 @@
 
 import { pgpDecrypt } from '../pgp/decrypt.ts';
 
-import {settings} from '../shared.ts';
+import {config, settings} from '../shared.ts';
 import { unlockedDecryptMaps } from '../util.ts';
 
 export async function onBeforeEditDraft(email: any): Promise<any> {
-  if(settings().encryptDrafts !== true) return email;
+  if(settings().encryptDrafts !== true && await config('forceDraftAndAttachmentsEncryption') !== true) return email;
 
   const modifiedEmail = { ...email };
   const { keyRecords, unlockedKeys } = await unlockedDecryptMaps();
