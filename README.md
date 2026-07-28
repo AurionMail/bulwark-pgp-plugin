@@ -24,6 +24,7 @@ End-to-end PGP for Bulwark Webmail, implemented as a **privileged** (same-origin
   - enforce Drafts and attachments encryption whatever the users decided
   - block until users unlocked their default keys : that ensure users have their key unlocked. It automatically enable for user the  'Ask for default key on booting' option
   - allow persistent keys : Used to disabled the Dangerous Persistent Storage of keys. Disabling force users to type passphrase each time they connect to webmail but it is more secured. 
+- **Onboarding for new users** (1.0.2) For new users which don't have key, there is an onboarding allowing them to generate keys and understand how PGP works.
 
 For more details, refers to [DOCS.md](DOCS.md) file.
 

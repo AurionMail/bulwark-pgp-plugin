@@ -648,9 +648,11 @@ export function SettingsSection() {
         .composer-btn:disabled { opacity: 0.5 !important; cursor: not-allowed; }
       `),
       h('input', { ref: fileRef, type: 'file', accept: '.asc,.key,.pgp', style: { display: 'none' }, onChange: handleFileChange }),
+      h('input', { ref: jsonFileRef, type: 'file', accept: '.json', style: { display: 'none' }, onChange: handleImportJSON }),
       h(OnboardingFlow, {
         busy: busy,
         onImportClick: () => fileRef.current && fileRef.current.click(),
+        onJsonImport: () => jsonFileRef.current && jsonFileRef.current.click(),
         onGenerate: (name, email, pass) => {
           // Fire the modified generation logic
           void handleGenerateKey({ name, email, pass });

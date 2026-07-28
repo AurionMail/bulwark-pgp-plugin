@@ -8,9 +8,10 @@ interface OnboardingFlowProps {
   busy: boolean;
   onImportClick: () => void;
   onGenerate: (name: string, email: string, pass: string) => void;
+  onJsonImport: () => void;
 }
 
-export function OnboardingFlow({ busy, onImportClick, onGenerate }: OnboardingFlowProps) {
+export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }: OnboardingFlowProps) {
   const [step, setStep] = useState<number>(1);
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
@@ -46,7 +47,8 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate }: OnboardingFl
       ),
       h('div', { style: { display: 'flex', gap: '12px', marginTop: '8px' } },
         h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: onImportClick }, 'Upload Existing Key'),
-        h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: () => setStep(3) }, 'Generate New Key')
+        h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: () => setStep(3) }, 'Generate New Key'),
+        h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: onJsonImport }, 'Import from JSON')
       )
     );
   }
