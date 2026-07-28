@@ -22,6 +22,7 @@ import {
 } from '../pgp/session-broadcast.ts';
 import { uploadKey, requestVerify, lookup } from '../pgp/server.ts';
 import { bufferToBytes, bytesToBuffer, generateNumericRecoveryCode, generateSalt } from '../util.ts';
+import { OnboardingFlow } from './onboarding.tsx';
 
 export function SettingsSection() {
   const [keys, setKeys] = useState<KeyRecord[]>([]);
@@ -524,8 +525,9 @@ export function SettingsSection() {
       setBusy(false);
     }
   }
-  async function handleGenerateKey() {
-    if (!gen.email || !gen.pass) {
+  async function handleGenerateKey(overrideGen?: { name: string, email: string, pass: string }) {
+    const data = overrideGen || gen;
+    if (!data.email || !data.pass) {
       host.toast.error(host.i18n.t('settings.error.missing_fields'));
       return;
     }
@@ -536,14 +538,19 @@ export function SettingsSection() {
       const { privateKey, revocationCertificate } = await openpgp.generateKey({
         type: 'ecc',
         curve: 'ed25519Legacy',
-        userIDs: [{ name: gen.name, email: gen.email }],
-        passphrase: gen.pass,
+        userIDs: [{ name: data.name, email: data.email }],
+        passphrase: data.pass,
         format: 'armored'
       });
-      
-      const { keyRecord } = await importOpenPgpPrivateKey(String(privateKey), gen.pass, gen.pass);
-      await saveKeyRecord({ ...keyRecord, recoverable: true });
-      console.log('codeRaw:', codeRaw);
+      let keyRecord;
+      //if there is not default key, set this one as default and generate an AES salt for it
+      if (!keys.some(k => k.default)) {
+        keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
+        await saveKeyRecord({ ...keyRecord, default: true, recoverable: true, aesSalt: generateSalt() });
+      }else{
+        keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
+        await saveKeyRecord({ ...keyRecord, recoverable: true });
+      }
 
 
       // 2. Déchiffrement complet de la clé PGP en mémoire (pour obtenir la clé PGP en clair)
@@ -555,7 +562,7 @@ export function SettingsSection() {
     
     const decryptedPgpKey = await openpgp.decryptKey({
       privateKey: parsedKey,
-      passphrase: gen.pass
+      passphrase: data.pass
     });
 
     const unencryptedPgpArmored = decryptedPgpKey.armor(); // Clé PGP 100% en clair
@@ -574,7 +581,7 @@ export function SettingsSection() {
 
       const backupContent = 
 ` ===================================================================
-  PGP RECOVERY & REVOCATION FILE - ${gen.email}
+  PGP RECOVERY & REVOCATION FILE - ${data.email}
   ===================================================================
 
   [ EMERGENCY NUMERIC RECOVERY CODE ]
@@ -589,7 +596,7 @@ export function SettingsSection() {
 
   ${revocationCertificate}`;
       host.ui.downloadFile({
-        filename: `backup_pgp_${gen.email}.txt`, 
+        filename: `backup_pgp_${data.email}.txt`, 
         content: backupContent, 
         contentType: 'text/plain'
       });
@@ -602,6 +609,31 @@ export function SettingsSection() {
     } finally {
       setBusy(false);
     }
+  }
+
+  if (keys.length === 0) {
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '720px' } },
+      // We still need the styles loaded for the onboarding component buttons
+      h('style', null, `
+        .composer-btn {
+          display: inline-flex; align-items: center; justify-content: center;
+          border-radius: 0.375rem; font-weight: 500; height: 2.25rem; padding: 0 1rem;
+          cursor: pointer; transition: all 150ms; border: 1px solid var(--color-border, #e2e8f0);
+          background-color: var(--color-background, #ffffff); color: var(--color-foreground, #0f172a);
+        }
+        .composer-btn:hover { background-color: var(--color-accent, #2563eb) !important; color: var(--color-accent-foreground, #ffffff) !important; opacity: 1 !important; }
+        .composer-btn:disabled { opacity: 0.5 !important; cursor: not-allowed; }
+      `),
+      h('input', { ref: fileRef, type: 'file', accept: '.asc,.key,.pgp', style: { display: 'none' }, onChange: handleFileChange }),
+      h(OnboardingFlow, {
+        busy: busy,
+        onImportClick: () => fileRef.current && fileRef.current.click(),
+        onGenerate: (name, email, pass) => {
+          // Fire the modified generation logic
+          void handleGenerateKey({ name, email, pass });
+        }
+      })
+    );
   }
 
   return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '720px' } },
