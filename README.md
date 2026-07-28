@@ -18,6 +18,12 @@ End-to-end PGP for Bulwark Webmail, implemented as a **privileged** (same-origin
 - **Import / Export** — Easily backup and restore your local search/preview index and PGP keys.
 - **Dynamic Recipient Badges:** Real-time check during drafting to see if `To/Cc/Bcc` addresses have valid public keys, displaying a visual badge next to them.
 - **Smart Encryption Fallback:** If some recipients lack PGP keys, prompt the user before sending two separate emails with the same Message-ID (one encrypted to PGP-capable recipients, and one in cleartext to those without keys).
+- **Generate yours keys** : You don't have keys ? You can generate them within the client ! Once generated, you will get a **revocation certificate** and a **emergency code** to unlock the key if you lost the passphrase. (1.0.2)
+- **Admin policies** : Decide what you want to your users (1.0.2) : you can
+  - enforce encryption : Force users to add/generate a key before they can send an email to a recipient. It ensure all users have a key.
+  - enforce Drafts and attachments encryption whatever the users decided
+  - block until users unlocked their default keys : that ensure users have their key unlocked. It automatically enable for user the  'Ask for default key on booting' option
+  - allow persistent keys : Used to disabled the Dangerous Persistent Storage of keys. Disabling force users to type passphrase each time they connect to webmail but it is more secured. 
 
 For more details, refers to [DOCS.md](DOCS.md) file.
 
@@ -28,6 +34,7 @@ For more details, refers to [DOCS.md](DOCS.md) file.
 - **Keys in Use:** Unlocking a key stores it strictly in RAM. It is **never** persisted to IndexedDB or written to disk during the active session.
 - **XSS & Isolation Limit:** The background part of the plugin acts like a service worker, communicating keys to other sandboxed components. 
   * *Note on Threat Model:* If an attacker successfully executes arbitrary JavaScript in the client (via XSS or a malicious third-party plugin), they could potentially intercept keys in memory. This is an inherent limitation of web-based cryptography. However, our 100% RAM isolation significantly reduces the attack surface compared to disk-bound alternatives that write active keys to browser storage.
+- **Keys in Use:** with DangerousStorage activated : Stored encrypted with a non extractible AES key. It allows user to avoid decrypting when refreshing (avialble in 1.0.2)
 - **Output Sanitization:** Returned HTML still passes through the host mail sanitizer before rendering.
 
 ---
@@ -38,7 +45,6 @@ For more details, refers to [DOCS.md](DOCS.md) file.
 - [x] **Address Book Integration:** Native integration of public keys within the Bulwark contact/address book. Available in next release (1.0.2)
 - [ ] **Server vs. E2E Badges:** Display a dedicated badge in the email list row to distinguish between E2E encrypted emails and those encrypted server-side (requires a new hook and Stalwart Server modifications). If you want to get this feature, show your interest here : https://support.stalw.art/t/add-an-explicit-server-encryption-marker-header-for-at-rest-encrypted-messages/1139 because now, we can't know if the mail is E2E encrypted or just stored encrypted.
 - [ ] Sync settings + keys accrois devices. Require new clients hook
-- [ ] Generate your keys
 - [ ] Check WKD of domains to search keys
 
 ---
@@ -46,9 +52,8 @@ For more details, refers to [DOCS.md](DOCS.md) file.
 ## Build & Installation
 
 ```bash
-npm install          # pulls pkijs / asn1js / pvtsutils / webcrypto-liner + esbuild
-npm run build        # → dist/index.js (~1.7 MB, under the privileged cap)
-npm run package      # → openpgp.zip (manifest.json + index.js) for admin upload
+npm install         
+npm run package
 ```
 
 ## Dependencies
