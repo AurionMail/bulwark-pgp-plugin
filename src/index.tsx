@@ -19,7 +19,8 @@ import { onEmailsFetched } from './hooks/onEmailsFetched.ts';
 import { askForDefaultKeyPass } from './hooks/activate.ts';
 import { onRecipientChipsChange } from './hooks/onRecipientChipsChange.ts';
 import { ContactCrypto } from './ui/contact.tsx';
-import { getDefaultKeyRecord } from './storage.ts';
+import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
+import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -63,14 +64,16 @@ export const hooks = {
   onSearchResults,
   onEmailsFetched,
   onRecipientChipsChange,
- /*  async onAfterLogout() {
+  async onAfterLogout() {
+    console.log('onAfterLogout called');
     if (settings().lockOnLogout === false) return;
-    try { await clearSessionKeys(); } catch (err) { host.log.warn('clearSessionKeys failed', err); }
+    console.log('Clearing dangerous storage on logout');
+    await clearDangerousStorage(); 
   },
   async onAccountSwitch() {
     if (settings().lockOnLogout === false) return;
-    try { await clearSessionKeys(); } catch (err) { host.log.warn('clearSessionKeys failed', err); }
-  }, */
+   await clearDangerousStorage();
+  },
 };
 
 function shouldShow(extraProps: any) {
@@ -97,8 +100,16 @@ export async function activate(api :any) {
     try { api.toast.error('OpenPGP needs the privileged tier — see plugin logs.'); } catch { /* ignore */ }
     return;
   }
+  let locked = true;
   initBackgroundSessionListener();
-  
+    if(settings().StoreDangerous && await config('allowPersistentKeys') === true){
+    await restoreKeysFromDangerousStorage();
+    locked = false;
+  }
+  if(settings().StoreDangerous && await config('allowPersistentKeys') === false){
+    // An admin decided to disable persistent keys, so we clear any previously stored keys.
+    await clearDangerousStorage();
+  }
   api.log.info('OpenPGP plugin activated with memory-only session management.');
   if(await config('forceEncryption') === true && !(await getDefaultKeyRecord())){
     const result = await api.ui.confirm({
@@ -108,8 +119,8 @@ export async function activate(api :any) {
       confirmLabel: api.i18n.t('prompt.no_default_key.confirm_label')
     });
   }
-  console.warn(await config('blockUntilDefaultKeyIsAvailable'));
-  if(settings().askForDefaultKeyPassOnActivated || await config('blockUntilDefaultKeyIsAvailable') === true){
+
+  if((settings().askForDefaultKeyPassOnActivated || await config('blockUntilDefaultKeyIsAvailable') === true)&& locked){
       await askForDefaultKeyPass();
   }
 }

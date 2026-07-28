@@ -10,12 +10,14 @@ import host from '@plugin-host';
 import { base64ToBuffer, bufferToBase64 } from "./util.ts";
 
 const DB_NAME = 'pgp-plugin-store';
-const DB_VERSION = 7;
+const DB_VERSION = 8;
 const KEY_RECORDS_STORE = 'key-records';
 const PUBLIC_CERTS_STORE = 'public-certs';
 const SESSION_KEYS_STORE = 'session-keys';
 const MESSAGE_CACHE_STORE = 'message-cache';
 const RECIPIENTS_STORE = 'recipients-cache'; 
+const DANGEROUS_KEYS_STORE = 'dangerous-keys';
+const DANGEROUS_MASTER_KEY_STORE = 'dangerous-master-key';
 
 // ── Interfaces ──────────────────────────────────────
 
@@ -115,6 +117,12 @@ function openDB(): Promise<IDBDatabase> {
       }
        if (!db.objectStoreNames.contains(RECIPIENTS_STORE)) {
         db.createObjectStore(RECIPIENTS_STORE, { keyPath: 'email' });
+      }
+      if (!db.objectStoreNames.contains(DANGEROUS_KEYS_STORE)) {
+        db.createObjectStore(DANGEROUS_KEYS_STORE);
+      }
+      if (!db.objectStoreNames.contains(DANGEROUS_MASTER_KEY_STORE)) {
+        db.createObjectStore(DANGEROUS_MASTER_KEY_STORE);
       }
     };
     
@@ -264,7 +272,97 @@ export async function clearAllMessageCache(): Promise<void> {
   const db = await openDB();
   await txPromise<undefined>(db, MESSAGE_CACHE_STORE, 'readwrite', (s) => s.clear());
 }
+// ── Dangerous Session Key Storage ───────────────────────────────────────
 
+async function getOrCreateMasterAesKey(db: IDBDatabase): Promise<CryptoKey> {
+  const existingKey = await txPromise<CryptoKey | undefined>(
+    db, 
+    DANGEROUS_MASTER_KEY_STORE, 
+    'readonly', 
+    (s) => s.get('master-aes-key')
+  );
+
+  if (existingKey) {
+    return existingKey;
+  }
+
+  // AES-GCM NON-extractable in IndexedDB
+  const newKey = await crypto.subtle.generateKey(
+    { name: 'AES-GCM', length: 256 },
+    false, // extractable = false
+    ['encrypt', 'decrypt']
+  );
+
+  await txPromise<IDBValidKey>(
+    db, 
+    DANGEROUS_MASTER_KEY_STORE, 
+    'readwrite', 
+    (s) => s.put(newKey, 'master-aes-key')
+  );
+
+  return newKey;
+}
+
+export async function persistPassphraseToDangerousStorage(keyId: string, passphrase: string): Promise<void> {
+  const db = await openDB();
+  const aesKey = await getOrCreateMasterAesKey(db);
+
+  const iv = crypto.getRandomValues(new Uint8Array(12));
+  const data = new TextEncoder().encode(passphrase);
+  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, aesKey, data);
+
+  await txPromise<IDBValidKey>(
+    db, 
+    DANGEROUS_KEYS_STORE, 
+    'readwrite', 
+    (s) => s.put({ iv, encrypted }, keyId)
+  );
+}
+
+export async function loadDangerousPassphrases(): Promise<Record<string, string>> {
+  const db = await openDB();
+  const aesKey = await getOrCreateMasterAesKey(db);
+
+  const passphrasesMap: Record<string, string> = {};
+
+  const allRecords = await txPromise<Array<{ iv: Uint8Array; encrypted: ArrayBuffer }>>(
+    db, 
+    DANGEROUS_KEYS_STORE, 
+    'readonly', 
+    (s) => s.getAll()
+  );
+
+  const allIds = await txPromise<string[]>(
+    db, 
+    DANGEROUS_KEYS_STORE, 
+    'readonly', 
+    (s) => s.getAllKeys()
+  );
+
+  for (let i = 0; i < allRecords.length; i++) {
+    const { iv, encrypted } = allRecords[i];
+    const keyId = allIds[i];
+
+    try {
+      const decrypted = await crypto.subtle.decrypt({ name: 'AES-GCM', iv: iv as BufferSource }, aesKey, encrypted);
+      passphrasesMap[keyId] = new TextDecoder().decode(decrypted);
+    } catch (e) {
+      console.error(`Failed to decrypt passphrase for key ${keyId}`, e);
+    }
+  }
+
+  return passphrasesMap;
+}
+
+export async function clearDangerousStorage(): Promise<void> {
+  const db = await openDB();
+  await txPromise<undefined>(
+    db, 
+    DANGEROUS_KEYS_STORE, 
+    'readwrite', 
+    (s) => s.clear()
+  );
+}
 //------------------ Recipient Store -----------------------------
 
 export async function saveRecipient(recipient: Recipient): Promise<void> {

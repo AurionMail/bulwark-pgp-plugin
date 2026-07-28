@@ -1,8 +1,8 @@
 import * as openpgp from 'openpgp';
 import { ContactEmail, generateUUID } from '../util.ts';
 import { extractKeyInfo } from './key-utils.ts';
-import { KeyRecord, listPublicCerts, savePublicCert } from '../storage.ts';
-import { KDF_ITERATIONS, AES_KEY_LENGTH } from '../shared.ts';
+import { KeyRecord, listPublicCerts, persistPassphraseToDangerousStorage, savePublicCert } from '../storage.ts';
+import { KDF_ITERATIONS, AES_KEY_LENGTH, settings, config } from '../shared.ts';
 import { deriveAesKeyFromPgpParams, getIndex } from '../cache.ts';
 import { type ContactCard } from '../util.ts';
 import { contacts } from '@plugin-host';
@@ -117,8 +117,9 @@ export async function importOpenPgpPrivateKey(
  * Decrypts the private key stored at rest and returns unlocked openpgp.PrivateKey instances.
  * @param record - The keyRecord extracted from IndexedDB
  * @param passphrase - The storage password defined by the user
+ * @param automated - Whether the unlock is automated
  */
-export async function unlockPrivateKey(record: KeyRecord, passphrase: string): Promise<UnlockResult> {
+export async function unlockPrivateKey(record: KeyRecord, passphrase: string, automated?: boolean): Promise<UnlockResult> {
   // 1. Dérivation de la clé de déballage pour la clé PGP
   const wrappingKey = await deriveWrappingKey(passphrase, record.salt, record.kdfIterations);
 
@@ -148,6 +149,9 @@ export async function unlockPrivateKey(record: KeyRecord, passphrase: string): P
     }
   }
   if(record.default === true && record.aesSalt){
+    if (settings().StoreDangerous && await config('allowPersistentKeys') === true && automated !== true) {
+        await persistPassphraseToDangerousStorage(record.id, passphrase).catch(console.error);
+      }
       const aesKey = await deriveAesKeyFromPgpParams(passphrase, record.aesSalt, record.kdfIterations);
       await getIndex(aesKey, passphrase, record);
 
@@ -159,6 +163,9 @@ export async function unlockPrivateKey(record: KeyRecord, passphrase: string): P
     };
 
   }else{
+    if (settings().StoreDangerous && await config('allowPersistentKeys') === true && automated !== true) {
+        await persistPassphraseToDangerousStorage(record.id, passphrase).catch(console.error);
+      }
     return {
     unlockedPrivateKey: openPgpPrivateKey.armor(),
     signingKey: openPgpPrivateKey.armor(),

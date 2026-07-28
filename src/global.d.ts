@@ -62,6 +62,7 @@ declare module '@plugin-host' {
       askForDefaultKeyPassOnActivated?: boolean;
       alwaysSendPubKey?: boolean;
       tryToFetchMissingKeys?: boolean;
+      StoreDangerous?: boolean;
     };
   } | undefined;
 }

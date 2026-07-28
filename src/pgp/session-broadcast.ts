@@ -1,7 +1,9 @@
 import { getPreview, search } from '../cache.ts';
+import { config, settings } from '../shared.ts';
 import { DecryptedCachePayload, listKeyRecords, SessionKeysEntry } from '../storage.ts';
 import { deriveSecret } from './key-utils.ts';
-
+import { loadDangerousPassphrases, getKeyRecord } from '../storage.ts';
+import { unlockPrivateKey } from './import.ts'; 
 const CHANNEL_NAME = 'pgp-session-bus';
 
 let _backgroundSessionKeys: Record<string, SessionKeysEntry> = {};
@@ -241,4 +243,41 @@ export function broadcastUpdateRamIndexEntry(id: string, payload: DecryptedCache
   const channel = new BroadcastChannel(CHANNEL_NAME);
   channel.postMessage({ type: 'UPDATE_RAM_INDEX_ENTRY', id, payload });
   channel.close();
+}
+
+
+
+export async function restoreKeysFromDangerousStorage(): Promise<void> {
+  if (!settings().StoreDangerous || !(await config('allowPersistentKeys') === true)) return;
+
+  try {
+    const passphrases = await loadDangerousPassphrases();
+    const keyIds = Object.keys(passphrases);
+
+    if (keyIds.length > 0) {
+      for (const keyId of keyIds) {
+        const rec = await getKeyRecord(keyId);
+        if (rec) {
+          // This naturally calls `getIndex` inside unlockPrivateKey and loads RAM
+          const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(rec, passphrases[keyId], true);
+
+          broadcastUnlockKey({ 
+        id: rec.id, 
+        unlockedPrivateKey, 
+        signingKey, 
+        decryptionKey ,
+        aesKey: aesKey,
+      });
+
+        }
+      }
+
+      // Broadcast unlock status to other listeners
+      const channel = new BroadcastChannel(CHANNEL_NAME);
+      channel.postMessage({ type: 'KEY_UPDATED', isUnlocked: true });
+      channel.close();
+    }
+  } catch (err) {
+    console.error('Failed to auto-unlock keys from dangerous storage:', err);
+  }
 }
