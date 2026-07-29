@@ -9,7 +9,7 @@
 import host from '@plugin-host';
 import { base64ToBuffer, bufferToBase64 } from "./util.ts";
 
-const DB_NAME = 'pgp-plugin-store';
+const DB_NAME = 'aurion-plugin-store';
 const DB_VERSION = 8;
 const KEY_RECORDS_STORE = 'key-records';
 const PUBLIC_CERTS_STORE = 'public-certs';
@@ -18,6 +18,7 @@ const MESSAGE_CACHE_STORE = 'message-cache';
 const RECIPIENTS_STORE = 'recipients-cache'; 
 const DANGEROUS_KEYS_STORE = 'dangerous-keys';
 const DANGEROUS_MASTER_KEY_STORE = 'dangerous-master-key';
+const AURION_DATA = 'aurion-data';
 
 // ── Interfaces ──────────────────────────────────────
 
@@ -128,6 +129,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(DANGEROUS_MASTER_KEY_STORE)) {
         db.createObjectStore(DANGEROUS_MASTER_KEY_STORE);
+      }
+      if (!db.objectStoreNames.contains(AURION_DATA)) {
+        db.createObjectStore(AURION_DATA);
       }
     };
     
@@ -495,4 +499,52 @@ export async function importPluginData(jsonContent: string): Promise<void> {
   } catch (error) {
     throw error;
   }
+}
+
+export interface BridgeSecret {
+  secret: string;
+  id: string;
+}
+
+//------------------AURION Store-----------------------------
+const TOKEN_KEY = 'aurion-jwt-token';
+const SECRET_KEY = 'aurion-secret';
+/**
+ * Sets or updates the JWT token in the AURION_DATA store.
+ */
+export async function setToken(token: string): Promise<void> {
+  const db = await openDB();
+  await txPromise<IDBValidKey>(db, AURION_DATA, 'readwrite', (s) => s.put(token, TOKEN_KEY));
+}
+
+/**
+ * Reads the JWT token from the AURION_DATA store.
+ */
+export async function getToken(): Promise<string | undefined> {
+  const db = await openDB();
+  return txPromise<string | undefined>(db, AURION_DATA, 'readonly', (s) => s.get(TOKEN_KEY));
+}
+
+/**
+ * Deletes the JWT token from the AURION_DATA store.
+ */
+export async function removeToken(): Promise<void> {
+  const db = await openDB();
+  await txPromise<undefined>(db, AURION_DATA, 'readwrite', (s) => s.delete(TOKEN_KEY));
+}
+
+/**
+ * Reads the single secret from the AURION_DATA store.
+ */
+export async function readSecret(): Promise<BridgeSecret | undefined> {
+  const db = await openDB();
+  return txPromise<BridgeSecret | undefined>(db, AURION_DATA, 'readonly', (s) => s.get(SECRET_KEY));
+}
+
+/**
+ * Removes the single secret from the AURION_DATA store.
+ */
+export async function removeSecret(): Promise<void> {
+  const db = await openDB();
+  await txPromise<undefined>(db, AURION_DATA, 'readwrite', (s) => s.delete(SECRET_KEY));
 }

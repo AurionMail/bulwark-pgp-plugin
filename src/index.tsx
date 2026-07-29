@@ -21,6 +21,7 @@ import { onRecipientChipsChange } from './hooks/onRecipientChipsChange.ts';
 import { ContactCrypto } from './ui/contact.tsx';
 import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
+import { initAurionAPI, syncfromAurion } from './aurion/utils.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -102,6 +103,10 @@ export async function activate(api :any) {
   }
   let locked = true;
   initBackgroundSessionListener();
+
+  const aurionAPI = await initAurionAPI();
+  await syncfromAurion(aurionAPI);
+
     if(settings().StoreDangerous && await config('allowPersistentKeys') === true){
     await restoreKeysFromDangerousStorage();
     locked = false;
