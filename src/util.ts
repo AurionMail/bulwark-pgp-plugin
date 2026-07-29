@@ -315,3 +315,28 @@ export function generateNumericRecoveryCode(): { codeFormatted: string; codeRaw:
     codeRaw: digits
   };
 }
+
+export interface Identity {
+  id: string;
+  name: string;
+  email: string;
+  replyTo?: any[];
+  bcc?: any[];
+  textSignature?: string;
+  htmlSignature?: string;
+  mayDelete: boolean;
+  localAccountId?: string;
+  accountName?: string;
+}
+
+export interface AccountEntry {
+  id: string;
+  label: string;
+  serverUrl: string;
+  username: string;
+  displayName: string;
+  email: string;
+  avatarColor: string;
+  isConnected: boolean;
+  isDefault: boolean;
+}

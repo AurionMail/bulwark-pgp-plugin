@@ -1,5 +1,6 @@
 import React from 'react';
-import { card } from './shared.ts';
+import host from '@plugin-host';
+import { card, selectStyle } from './shared.ts';
 
 const h = React.createElement;
 const { useState } = React;
@@ -11,11 +12,72 @@ interface OnboardingFlowProps {
   onJsonImport: () => void;
 }
 
+interface UnifiedIdentityOption {
+  email: string;
+  defaultName: string;
+}
+
 export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }: OnboardingFlowProps) {
   const [step, setStep] = useState<number>(1);
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [pass, setPass] = useState<string>('');
+  const [identityOptions, setIdentityOptions] = useState<UnifiedIdentityOption[]>([]);
+  const [loadingIdentities, setLoadingIdentities] = useState<boolean>(false);
+
+  React.useEffect(() => {
+    async function loadUserIdentities() {
+      setLoadingIdentities(true);
+      try {
+        const [accounts, identities] = await Promise.all([
+          host.user.getAccounts(),
+          host.user.getIdentities()
+        ]);
+
+        const map = new Map<string, string>(); // Key: email (lowercase), Value: name
+
+        accounts.forEach(acc => {
+          if (!acc.email) return;
+          const key = acc.email.toLowerCase().trim();
+          if (!map.has(key)) {
+            map.set(key, acc.displayName || acc.username || '');
+          }
+        });
+        identities.forEach(id => {
+          if (!id.email) return;
+          const key = id.email.toLowerCase().trim();
+          if (!map.has(key)) {
+            map.set(key, id.name || '');
+          }
+        });
+
+        const unifiedList: UnifiedIdentityOption[] = Array.from(map.entries()).map(([email, defaultName]) => ({
+          email,
+          defaultName
+        }));
+
+        setIdentityOptions(unifiedList);
+        if (unifiedList.length > 0) {
+          setEmail(unifiedList[0].email);
+          setName(unifiedList[0].defaultName);
+        }
+      } catch (err) {
+        console.error('Failed to load identity options', err);
+      } finally {
+        setLoadingIdentities(false);
+      }
+    }
+
+    loadUserIdentities();
+  }, []);
+
+  const handleEmailChange = (selectedEmail: string) => {
+    setEmail(selectedEmail);
+    const found = identityOptions.find(opt => opt.email === selectedEmail);
+    if (found) {
+      setName(found.defaultName);
+    }
+  };
 
   const inputStyle = {
     height: '2.25rem', padding: '0 0.75rem', borderRadius: '0.375rem', 
@@ -75,9 +137,35 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }
       'Upon generation, a revocation certificate and a backup recovery code will be downloaded. Keep them in a safe place! You will need them if you lose your passphrase.'
     ),
     h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' } },
-      h('input', { type: 'text', placeholder: 'Full Name', required: true, value: name, onChange: (e) => setName((e.target as HTMLInputElement).value), style: inputStyle }),
-      h('input', { type: 'email', placeholder: 'Email Address', required: true, value: email, onChange: (e) => setEmail((e.target as HTMLInputElement).value), style: inputStyle }),
-      h('input', { type: 'password', placeholder: 'Secure Passphrase', required: true, value: pass, onChange: (e) => setPass((e.target as HTMLInputElement).value), style: inputStyle })
+
+      h('select', {
+        value: email,
+        disabled: busy || loadingIdentities,
+        onChange: (e: React.ChangeEvent<HTMLSelectElement>) => handleEmailChange(e.target.value),
+        style: selectStyle
+      }, 
+        identityOptions.length === 0
+          ? h('option', { value: '' }, loadingIdentities ? 'Loading identities...' : 'No email accounts found')
+          : identityOptions.map(opt => h('option', { key: opt.email, value: opt.email }, opt.email))
+      ),
+
+      h('input', { 
+        type: 'text', 
+        placeholder: 'Full Name', 
+        required: true, 
+        value: name, 
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value), 
+        style: inputStyle 
+      }),
+
+      h('input', { 
+        type: 'password', 
+        placeholder: 'Secure Passphrase', 
+        required: true, 
+        value: pass, 
+        onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPass(e.target.value), 
+        style: inputStyle 
+      })
     ),
     h('div', { style: { display: 'flex', justifyContent: 'space-between' } },
       h('button', { className: 'composer-btn', disabled: busy, onClick: () => setStep(3) }, 'Back'),

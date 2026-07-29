@@ -24,7 +24,9 @@
     "http:fetch",
     "contacts:read",
     "contacts:write",
-    "admin:config"
+    "admin:config",
+    "account:read",
+    "identity:read"
   ],
   "httpOrigins": [
     "https://keys.openpgp.org"

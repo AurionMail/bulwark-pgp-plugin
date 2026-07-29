@@ -22,6 +22,10 @@ declare module '@plugin-host' {
   export const admin:{
     getConfig(value?: string): Promise<any>;
   }
+  export const user: {
+    getAccounts(): Promise<AccountEntry[]>;
+    getIdentities(): Promise<Identity[]>;
+  }
   export const log: {
     info(msg: string, ...args: any[]): void;
     warn(msg: string, ...args: any[]): void;
