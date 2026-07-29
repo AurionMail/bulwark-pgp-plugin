@@ -302,7 +302,7 @@ export interface Timestamp {
 }
 
 export function generateNumericRecoveryCode(): { codeFormatted: string; codeRaw: string } {
-  const bytes = new Uint8Array(16);
+  const bytes = new Uint8Array(128);
   crypto.getRandomValues(bytes);
   let digits = '';
   for (let i = 0; i < bytes.length; i++) {
