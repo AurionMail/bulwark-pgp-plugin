@@ -1,8 +1,8 @@
 {
-  "id": "pgp-true-end-to-end",
-  "name": "PGP True End-to-End",
+  "id": "aurion-pgp-true-end-to-end",
+  "name": "Aurion PGP",
   "version": "1.0.1",
-  "author": "Paulhenry Saux & Community",
+  "author": "Aurion Community",
   "description": "End-to-end OpenPGP for webmail: sign and encrypt outgoing messages, and automatically verify signatures and decrypt incoming PGP mail. Private keys are encrypted at rest with a passphrase, and unlocked into non-extractable WebCrypto keys that never leave your browser. Runs in the privileged (same-origin) plugin tier so all cryptography happens locally.",
   "type": "ui-extension",
   "tier": "privileged",
@@ -29,7 +29,8 @@
     "identity:read"
   ],
   "httpOrigins": [
-    "https://keys.openpgp.org"
+    "https://keys.openpgp.org",
+    "https://server.aurionmail.org"
   ],
   "entrypoint": "index.js",
   "minAppVersion": "1.7.8",
