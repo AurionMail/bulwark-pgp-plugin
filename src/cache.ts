@@ -1,4 +1,4 @@
-import { DecryptedCachePayload, getAllMessageCache, KeyRecord } from "./storage.ts";
+import { DecryptedCachePayload, getAllMessageCache, getMessageCache, KeyRecord } from "./storage.ts";
 import { broadcastInitializeRamIndex } from "./pgp/session-broadcast.ts";
 import { AES_KEY_LENGTH } from "./shared.ts";
 import { 
@@ -69,46 +69,51 @@ export async function indexAndPersistDecryptedMail(
   mailId: string, 
   clearText: string
 ): Promise<void> {
-  try {
-    const allKeys = await listKeyRecords();
-    const defaultKey = allKeys.find((k) => k.default === true);
 
-    if (!defaultKey) {
-      return;
+  // Check if the message is already cached
+  if(!await getMessageCache(mailId)){
+
+    try {
+      const allKeys = await listKeyRecords();
+      const defaultKey = allKeys.find((k) => k.default === true);
+
+      if (!defaultKey) {
+        return;
+      }
+      const sessionData = await fetchKeyFromBackground(defaultKey.id);
+      
+      if (!sessionData || !sessionData.aesKey) {
+        return; 
+      }
+      
+      const aesKey = sessionData.aesKey;
+      const preview = clearText.substring(0, 150).replace(/\s+/g, ' ').trim() + (clearText.length > 150 ? '...' : '');
+      const tokens = tokenizeText(clearText);
+
+      const decryptedPayload: DecryptedCachePayload = { preview, tokens };
+
+      const textBytes = new TextEncoder().encode(JSON.stringify(decryptedPayload));
+      const iv = crypto.getRandomValues(new Uint8Array(12)); // IV unique par mail
+
+      const encryptedPayload = await crypto.subtle.encrypt(
+        { name: "AES-GCM", iv },
+        aesKey,
+        textBytes
+      );
+
+      const encryptedRecord: EncryptedMessageCache = {
+        id: mailId,
+        encryptedPayload: new Uint8Array(encryptedPayload),
+        iv: iv
+      };
+
+      await saveMessageCache(encryptedRecord);
+
+      broadcastUpdateRamIndexEntry(mailId, decryptedPayload);
+
+    } catch (error) {
+      throw error;
     }
-    const sessionData = await fetchKeyFromBackground(defaultKey.id);
-    
-    if (!sessionData || !sessionData.aesKey) {
-      return; 
-    }
-    
-    const aesKey = sessionData.aesKey;
-    const preview = clearText.substring(0, 150).replace(/\s+/g, ' ').trim() + (clearText.length > 150 ? '...' : '');
-    const tokens = tokenizeText(clearText);
-
-    const decryptedPayload: DecryptedCachePayload = { preview, tokens };
-
-    const textBytes = new TextEncoder().encode(JSON.stringify(decryptedPayload));
-    const iv = crypto.getRandomValues(new Uint8Array(12)); // IV unique par mail
-
-    const encryptedPayload = await crypto.subtle.encrypt(
-      { name: "AES-GCM", iv },
-      aesKey,
-      textBytes
-    );
-
-    const encryptedRecord: EncryptedMessageCache = {
-      id: mailId,
-      encryptedPayload: new Uint8Array(encryptedPayload),
-      iv: iv
-    };
-
-    await saveMessageCache(encryptedRecord);
-
-    broadcastUpdateRamIndexEntry(mailId, decryptedPayload);
-
-  } catch (error) {
-    throw error;
   }
 }
 
