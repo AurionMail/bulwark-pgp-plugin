@@ -60,6 +60,12 @@
       "label": "Allow persistent keys",
       "description": "Allow users to activate the persistent key feature (unlocked keys stored in indexedDB encrypted with a non extractible webCrypto key).",
       "default": false
+    },
+    "CryptpadURL": {
+      "type": "string",
+      "label": "Cryptpad URL",
+      "description": "The URL of the Cryptpad instance to use. Leave empty to disable the Cryptpad integration",
+      "default": ""
     }
   },
   "settingsSchema": {

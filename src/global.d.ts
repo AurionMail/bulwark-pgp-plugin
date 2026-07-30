@@ -55,6 +55,7 @@ declare module '@plugin-host' {
       downloadFile: (opts: { content: string; filename: string; contentType?: string }) => Promise<void>;
       rerenderEmail(): void;
       rerenderFetchedEmails(): void;
+      openExternalUrl(url: string): void;
   };
   export const plugin: {
     settings?: {

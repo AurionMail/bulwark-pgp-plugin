@@ -9,10 +9,10 @@ import {
   saveMessageCache, 
   listPublicCerts, 
   savePublicCert, 
-  deletePublicCert,
-  KeyRecord 
+  deletePublicCert, 
 } from '../storage.ts';
 import { generateUUID } from '../util.ts';
+import { consumeSecret } from './secrets/client.ts';
 
 export async function initAurionAPI(baseUrl: string = 'http://localhost:8080'): Promise<AurionAPI> {
   const api = new AurionAPI(baseUrl);
@@ -21,9 +21,7 @@ export async function initAurionAPI(baseUrl: string = 'http://localhost:8080'): 
     const secret = await readSecret();
     if (secret) {
         //un secret est détecté, on va l'utiliser pour récupérer les inforrmations d'authentification.
-        const bridgeSecret = await api.getBridgeSecret(secret.id);
-        // on dechiffre pour trouver le mot de passe.
-        const pass = bridgeSecret.encryptedData; // ici on devrait déchiffrer le mot de passe avec bridgeSecret.secret
+        const pass = await consumeSecret(secret.id);
         const mail = (await host.user.getAccounts()).filter(acc => acc.isConnected === true && acc.isDefault === true)[0]?.email;
         // on se connecte avec le mail et le mot de passe.
         const data = await api.login(mail, pass);

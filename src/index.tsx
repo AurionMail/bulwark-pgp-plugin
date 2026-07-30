@@ -22,6 +22,7 @@ import { ContactCrypto } from './ui/contact.tsx';
 import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
 import { initAurionAPI, syncfromAurion } from './aurion/utils.ts';
+import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -92,7 +93,8 @@ export const slots = {
     component: EmailSecuBanner,
     shouldShow,
     order: 60
-  }
+  },
+  'navigation-rail-bottom': { component: Navbar, order: 70 }
 };
 
 export async function activate(api :any) {

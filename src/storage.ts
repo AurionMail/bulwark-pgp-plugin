@@ -19,7 +19,9 @@ const MESSAGE_CACHE_STORE = 'message-cache';
 const RECIPIENTS_STORE = 'recipients-cache'; 
 const DANGEROUS_KEYS_STORE = 'dangerous-keys';
 const DANGEROUS_MASTER_KEY_STORE = 'dangerous-master-key';
+// ── AURION DATA ─────────────────────────────────────
 const AURION_DATA = 'aurion-data';
+const AURION_SECRET_STORE = 'aurion-secret'; // Store
 
 // ── Interfaces ──────────────────────────────────────
 
@@ -504,12 +506,13 @@ export async function importPluginData(jsonContent: string): Promise<void> {
   }
 }
 
-export interface BridgeSecret {
-  secret: string;
+//  ─── AURION Store ──────────────────────────────────────
+export interface localBridgeSecret {
+  seed: string;
   id: string;
+  iv: string;
 }
 
-//------------------AURION Store-----------------------------
 const TOKEN_KEY = 'aurion-jwt-token';
 const SECRET_KEY = 'aurion-secret';
 /**
@@ -539,9 +542,9 @@ export async function removeToken(): Promise<void> {
 /**
  * Reads the single secret from the AURION_DATA store.
  */
-export async function readSecret(): Promise<BridgeSecret | undefined> {
+export async function readSecret(): Promise<localBridgeSecret | undefined> {
   const db = await openDB();
-  return txPromise<BridgeSecret | undefined>(db, AURION_DATA, 'readonly', (s) => s.get(SECRET_KEY));
+  return txPromise<localBridgeSecret | undefined>(db, AURION_SECRET_STORE, 'readonly', (s) => s.get(SECRET_KEY));
 }
 
 /**
@@ -549,5 +552,5 @@ export async function readSecret(): Promise<BridgeSecret | undefined> {
  */
 export async function removeSecret(): Promise<void> {
   const db = await openDB();
-  await txPromise<undefined>(db, AURION_DATA, 'readwrite', (s) => s.delete(SECRET_KEY));
+  await txPromise<undefined>(db, AURION_SECRET_STORE, 'readwrite', (s) => s.delete(SECRET_KEY));
 }
