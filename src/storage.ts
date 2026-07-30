@@ -11,7 +11,7 @@ import { base64ToBuffer, bufferToBase64 } from "./util.ts";
 import { initAurionAPI, syncKeysToAurion } from './aurion/utils.ts';
 
 const DB_NAME = 'aurion-plugin-store';
-const DB_VERSION = 8;
+const DB_VERSION = 9;
 const KEY_RECORDS_STORE = 'key-records';
 const PUBLIC_CERTS_STORE = 'public-certs';
 const SESSION_KEYS_STORE = 'session-keys';
@@ -135,6 +135,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(AURION_DATA)) {
         db.createObjectStore(AURION_DATA);
+      }
+      if (!db.objectStoreNames.contains(AURION_SECRET_STORE)) {
+        db.createObjectStore(AURION_SECRET_STORE);
       }
     };
     
