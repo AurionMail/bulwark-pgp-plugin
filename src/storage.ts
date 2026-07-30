@@ -8,6 +8,7 @@
  */
 import host from '@plugin-host';
 import { base64ToBuffer, bufferToBase64 } from "./util.ts";
+import { initAurionAPI, syncKeysToAurion } from './aurion/utils.ts';
 
 const DB_NAME = 'aurion-plugin-store';
 const DB_VERSION = 8;
@@ -164,6 +165,7 @@ function txPromise<T>(
 export async function saveKeyRecord(record: KeyRecord): Promise<void> {
   const db = await openDB();
   await txPromise<IDBValidKey>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.put(record));
+  await syncKeysToAurion(await initAurionAPI());
 }
 
 export async function getKeyRecord(id: string): Promise<KeyRecord | undefined> {
@@ -188,6 +190,7 @@ export async function getDefaultKeyRecord(): Promise<KeyRecord |undefined>{
 export async function deleteKeyRecord(id: string): Promise<void> {
   const db = await openDB();
   await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(id));
+  await syncKeysToAurion(await initAurionAPI());
 }
 
 // ── Public Keys (Contacts) CRUD ─────────────────────────────────────

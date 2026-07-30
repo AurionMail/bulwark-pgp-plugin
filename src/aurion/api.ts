@@ -27,8 +27,8 @@ export interface NetworkVaultPayload {
   format: string;
   version: number;
   createdAt: string;
-  keys: any[]; // KeyRecord avec des strings au lieu des ArrayBuffers
-  messageCache: any[]; // EncryptedMessageCache avec des strings
+  keys?: any[]; // KeyRecord avec des strings au lieu des ArrayBuffers
+  messageCache?: any[]; // EncryptedMessageCache avec des strings
 }
 
 
@@ -139,9 +139,29 @@ export class AurionAPI {
     return { keys, messageCache };
   }
 
-  public async saveVault(keys: KeyRecord[], messageCache: EncryptedMessageCache[]): Promise<{ status: string }> {
-    // Conversion des interfaces du plugin (ArrayBuffer/Uint8Array) vers le JSON (Base64)
-    const networkKeys = keys.map((k) => ({
+  public async addMessage(messageCache: EncryptedMessageCache): Promise<{ status: string }> {
+
+    const networkCache = [{
+      ...messageCache,
+      encryptedPayload: bufferToBase64(messageCache.encryptedPayload),
+      iv: bufferToBase64(messageCache.iv),
+    }];
+
+    const payload: NetworkVaultPayload = {
+      format: "openpgp-plugin-backup",
+      version: 7,
+      createdAt: new Date().toISOString(),
+      messageCache: networkCache
+    };
+
+    return this.request<{ status: string }>('/api/vault', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
+
+  public async updateKeys(keys: KeyRecord[]): Promise<{ status: string }> {
+    const networkKeys = keys?.map((k) => ({
       ...k,
       encryptedPrivateKey: bufferToBase64(k.encryptedPrivateKey),
       salt: bufferToBase64(k.salt),
@@ -154,18 +174,11 @@ export class AurionAPI {
       } : undefined,
     }));
 
-    const networkCache = messageCache.map((m) => ({
-      ...m,
-      encryptedPayload: bufferToBase64(m.encryptedPayload),
-      iv: bufferToBase64(m.iv),
-    }));
-
     const payload: NetworkVaultPayload = {
       format: "openpgp-plugin-backup",
       version: 7,
       createdAt: new Date().toISOString(),
-      keys: networkKeys,
-      messageCache: networkCache
+      keys: networkKeys
     };
 
     return this.request<{ status: string }>('/api/vault', {

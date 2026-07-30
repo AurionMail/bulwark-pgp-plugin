@@ -14,7 +14,7 @@ import {
 } from '../storage.ts';
 import { generateUUID } from '../util.ts';
 
-export async function initAurionAPI(baseUrl: string = 'http://localhost:8080'): Promise<any> {
+export async function initAurionAPI(baseUrl: string = 'http://localhost:8080'): Promise<AurionAPI> {
   const api = new AurionAPI(baseUrl);
 
     // regarder si on a un trasnfert de secret local/server.
@@ -119,4 +119,8 @@ export async function syncfromAurion(api: AurionAPI): Promise<void> {
       await deletePublicCert(cert.id);
     }
   }
+}
+
+export async function syncKeysToAurion(api: AurionAPI): Promise<{status: string;}> {
+  return await api.updateKeys(await listKeyRecords());
 }
