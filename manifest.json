@@ -32,6 +32,9 @@
     "https://keys.openpgp.org",
     "https://aurion.mail.aurionmail.org"
   ],
+    "frameOrigins": [
+    "https://pad.aurionmail.org"
+  ],
   "entrypoint": "index.js",
   "minAppVersion": "1.7.8",
   "icon": "media/icon.svg",
