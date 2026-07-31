@@ -13,18 +13,36 @@ import {
 } from '../storage.ts';
 import { generateUUID } from '../util.ts';
 import { consumeSecret } from './secrets/client.ts';
+import { config } from '../shared.ts';
+import { argon2id } from 'hash-wasm';
 
-export async function initAurionAPI(baseUrl: string = 'http://localhost:8080'): Promise<AurionAPI> {
+export async function initAurionAPI(): Promise<AurionAPI> {
+  const baseUrl: string =  await config('AurionURL');
+  host.log.info(`Initializing AurionAPI with base URL: ${baseUrl}`);
   const api = new AurionAPI(baseUrl);
 
     // regarder si on a un trasnfert de secret local/server.
     const secret = await readSecret();
     if (secret) {
         //un secret est détecté, on va l'utiliser pour récupérer les inforrmations d'authentification.
-        const pass = await consumeSecret(secret.id);
+        const masterPass = await consumeSecret(secret.id);
+        host.log.info(`Using secret: ${masterPass} to authenticate with AurionAPI.`);
         const mail = (await host.user.getAccounts()).filter(acc => acc.isConnected === true && acc.isDefault === true)[0]?.email;
+        // get username from email (before @)
+        const username = mail.split('@')[0];
+        const salt = new TextEncoder().encode(`auth_salt_${username}`);
+        const pass = await argon2id({
+          password: masterPass,
+          salt: salt,
+          parallelism: 1,
+          iterations: 3,
+          memorySize: 65536,
+          hashLength: 32,
+          outputType: 'hex',
+        });
+        
         // on se connecte avec le mail et le mot de passe.
-        const data = await api.login(mail, pass);
+        const data = await api.login(username, pass);
         await setToken(data.token);
         await removeSecret();
     }else{

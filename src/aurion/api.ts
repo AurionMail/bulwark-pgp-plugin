@@ -1,5 +1,6 @@
 import { KeyRecord, EncryptedMessageCache } from '../storage.ts';
 import { bufferToBase64, base64ToBuffer } from '../util.ts';
+import host  from '@plugin-host';
 
 export interface AuthUser {
   id: string;
@@ -42,7 +43,7 @@ export class AurionAPI {
   private baseUrl: string;
   private token: string | null = null;
 
-  constructor(baseUrl: string = 'http://localhost:8080') {
+  constructor(baseUrl: string) {
     this.baseUrl = baseUrl;
   }
 
@@ -64,32 +65,46 @@ export class AurionAPI {
    * Fonction utilitaire interne pour faire les requêtes `fetch`
    */
   private async request<T>(endpoint: string, options: RequestInit = {}): Promise<T> {
-    const headers: HeadersInit = {
+    const method = (options.method || 'GET').toUpperCase();
+    const fullUrl = `${this.baseUrl}${endpoint}`;
+    host.log.info(`AurionAPI Request: ${method} ${fullUrl}`, options);
+    // 1. Préparation des headers
+    const headers: Record<string, string> = {
       'Content-Type': 'application/json',
-      ...options.headers as Record<string, string>,
+      ...(options.headers as Record<string, string>),
     };
 
     if (this.token) {
       headers['Authorization'] = `Bearer ${this.token}`;
     }
 
-    const response = await fetch(`${this.baseUrl}${endpoint}`, {
-      ...options,
+    // 2. Execution via host.http.fetch (reçoit n'importe quel verbe HTTP : GET, POST, PUT...)
+    const res = await host.http.fetch(fullUrl, {
+      method,
       headers,
+      body: typeof options.body === 'string' ? options.body : undefined,
     });
 
-    if (!response.ok) {
-      let errorMessage = `HTTP Error ${response.status}`;
+    // 3. Extraction et parsing du JSON
+    let parsedData: any = null;
+    if (res.bodyText) {
       try {
-        const errorData = await response.json();
-        if (errorData.error) errorMessage = errorData.error;
-      } catch (e) {
-        // Ignorer si la réponse n'est pas du JSON
+        parsedData = JSON.parse(res.bodyText);
+      } catch {
+        // Le corps n'est pas du JSON valide
+      }
+    }
+
+    // 4. Traitement des erreurs HTTP
+    if (!res.ok) {
+      let errorMessage = `HTTP Error ${res.status}`;
+      if (parsedData && parsedData.error) {
+        errorMessage = parsedData.error;
       }
       throw new Error(errorMessage);
     }
 
-    return response.json();
+    return parsedData as T;
   }
 
   // ==========================================

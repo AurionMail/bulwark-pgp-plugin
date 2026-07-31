@@ -30,7 +30,7 @@
   ],
   "httpOrigins": [
     "https://keys.openpgp.org",
-    "https://server.aurionmail.org"
+    "https://aurion.mail.aurionmail.org"
   ],
   "entrypoint": "index.js",
   "minAppVersion": "1.7.8",
@@ -66,6 +66,12 @@
       "label": "Cryptpad URL",
       "description": "The URL of the Cryptpad instance to use. Leave empty to disable the Cryptpad integration",
       "default": ""
+    },
+    "AurionURL": {
+      "type": "string",
+      "label": "Aurion URL",
+      "description": "The URL of the Aurion Server",
+      "default": "https://localhost:8080"
     }
   },
   "settingsSchema": {
