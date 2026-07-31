@@ -162,30 +162,23 @@ export async function unlockPrivateKey(record: KeyRecord, passphrase: string, au
       throw new Error(`Failed to decrypt internal OpenPGP packets: ${err.message}`);
     }
   }
-  if(record.default === true && record.aesSalt){
-    if (settings().StoreDangerous && await config('allowPersistentKeys') === true && automated !== true) {
-        await persistPassphraseToDangerousStorage(record.id, passphrase).catch(console.error);
-      }
-      const aesKey = await deriveAesKeyFromPgpParams(passphrase, record.aesSalt, record.kdfIterations);
-      await getIndex(aesKey, passphrase, record);
-
-      return {
-    unlockedPrivateKey: openPgpPrivateKey.armor(),
-    signingKey: openPgpPrivateKey.armor(),
-    decryptionKey: openPgpPrivateKey.armor(),
-    aesKey
-    };
-
-  }else{
-    if (settings().StoreDangerous && await config('allowPersistentKeys') === true && automated !== true) {
-        await persistPassphraseToDangerousStorage(record.id, passphrase).catch(console.error);
-      }
-    return {
-    unlockedPrivateKey: openPgpPrivateKey.armor(),
-    signingKey: openPgpPrivateKey.armor(),
-    decryptionKey: openPgpPrivateKey.armor(),
-  };
+  // Handle persistent storage if conditions are met (shared by both branches)
+  if (settings().StoreDangerous && (await config('allowPersistentKeys')) === true && automated !== true) {
+    await persistPassphraseToDangerousStorage(record.id, passphrase).catch(console.error);
   }
+
+  let aesKey;
+  if (record.default === true && record.aesSalt) {
+    aesKey = await deriveAesKeyFromPgpParams(passphrase, record.aesSalt, record.kdfIterations);
+    await getIndex(aesKey, passphrase, record);
+  }
+
+  return {
+    unlockedPrivateKey: openPgpPrivateKey.armor(),
+    signingKey: openPgpPrivateKey.armor(),
+    decryptionKey: openPgpPrivateKey.armor(),
+    ...(aesKey && { aesKey })
+  };
 }
 
 export async function importOpenPgpPublicKey(armoredPublicKeyText: string): Promise<string> {
