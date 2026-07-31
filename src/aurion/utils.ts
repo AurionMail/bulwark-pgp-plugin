@@ -1,5 +1,5 @@
 import { AurionAPI } from './api.ts';
-import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord } from '../storage.ts';
+import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord, persistPassphraseToDangerousStorage } from '../storage.ts';
 import  host  from '@plugin-host';
 import { 
   listKeyRecords, 
@@ -135,6 +135,11 @@ async function restoreKeys(masterPass: string): Promise<void> {
         decryptionKey ,
         aesKey: aesKey,
       });
+
+      if (settings().StoreDangerous && await config('allowPersistentKeys') === true) {
+        await persistPassphraseToDangerousStorage(rec.id, masterPass).catch(console.error);
+      }
+      
       }
       // Broadcast unlock status to other listeners
       const channel = new BroadcastChannel(CHANNEL_NAME);
