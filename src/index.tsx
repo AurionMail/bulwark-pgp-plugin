@@ -110,6 +110,7 @@ export async function activate(api :any) {
   locked = await activateAurionAPI();
 
     if(settings().StoreDangerous && await config('allowPersistentKeys') === true && locked){
+      console.log('Restoring keys from dangerous storage', locked);
     await restoreKeysFromDangerousStorage();
     locked = false;
   }

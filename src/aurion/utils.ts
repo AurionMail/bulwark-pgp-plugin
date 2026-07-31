@@ -124,6 +124,7 @@ async function restoreKeys(masterPass: string): Promise<void> {
     
     if (keys.length > 0) {
       for (const rec of keys) {
+        if(rec.recovery === true) continue; // Skip recovery keys
           // This naturally calls `getIndex` inside unlockPrivateKey and loads RAM
           const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(rec, masterPass, true);
 
