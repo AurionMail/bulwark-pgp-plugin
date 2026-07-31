@@ -23,6 +23,7 @@ import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
 import { initAurionAPI, syncfromAurion } from './aurion/utils.ts';
 import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
+import { initAurionBackgroundSessionListener } from './aurion/session-broadcast.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -105,6 +106,7 @@ export async function activate(api :any) {
   }
   let locked = true;
   initBackgroundSessionListener();
+  initAurionBackgroundSessionListener();
 
   const aurionAPI = await initAurionAPI();
   await syncfromAurion(aurionAPI);

@@ -1,5 +1,5 @@
 import { AurionAPI } from './api.ts';
-import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage } from '../storage.ts';
+import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord } from '../storage.ts';
 import  host  from '@plugin-host';
 import { 
   listKeyRecords, 
@@ -13,8 +13,12 @@ import {
 } from '../storage.ts';
 import { generateUUID } from '../util.ts';
 import { consumeSecret } from './secrets/client.ts';
-import { config } from '../shared.ts';
+import { config, settings } from '../shared.ts';
 import { argon2id } from 'hash-wasm';
+import { broadcastUnlockKey } from '../pgp/session-broadcast.ts';
+import { unlockPrivateKey } from '../pgp/import.ts';
+import {CHANNEL_NAME} from '../pgp/session-broadcast.ts';
+import { broadcastInitializeMasterPass } from './session-broadcast.ts';
 
 export async function initAurionAPI(): Promise<AurionAPI> {
   const baseUrl: string =  await config('AurionURL');
@@ -45,6 +49,7 @@ export async function initAurionAPI(): Promise<AurionAPI> {
         const data = await api.login(username, pass);
         await setToken(data.token);
         await removeSecret();
+        await restoreKeys(masterPass);
     }else{
         // si on a pas de secret, on cherche un token
         const token = await getToken();
@@ -57,6 +62,38 @@ export async function initAurionAPI(): Promise<AurionAPI> {
     return api;
 }
 
+async function restoreKeys(masterPass: string): Promise<void> {
+
+  try {
+    console.log("Restoring keys from dangerous storage with masterPass:", masterPass);
+    broadcastInitializeMasterPass(masterPass);
+    console.log("Broadcasted masterPass to background session listener.");
+    const keys = await listKeyRecords()
+    // we assume all keys have the same master password, so we use the provided masterPass to unlock them. 
+    // Indeed, in Aurion context, the master password is used to generate keys.
+    
+    if (keys.length > 0) {
+      for (const rec of keys) {
+          // This naturally calls `getIndex` inside unlockPrivateKey and loads RAM
+          const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(rec, masterPass, true);
+
+          broadcastUnlockKey({ 
+        id: rec.id, 
+        unlockedPrivateKey, 
+        signingKey, 
+        decryptionKey ,
+        aesKey: aesKey,
+      });
+      }
+      // Broadcast unlock status to other listeners
+      const channel = new BroadcastChannel(CHANNEL_NAME);
+      channel.postMessage({ type: 'KEY_UPDATED', isUnlocked: true });
+      channel.close();
+    }
+  } catch (err) {
+    host.log.error('Failed to auto-unlock keys from dangerous storage:', err);
+  }
+}
 
 
 export async function syncfromAurion(api: AurionAPI): Promise<void> {
