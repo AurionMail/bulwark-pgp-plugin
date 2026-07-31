@@ -130,6 +130,7 @@ export async function importOpenPgpPrivateKey(
  */
 export async function unlockPrivateKey(record: KeyRecord, passphrase: string, automated?: boolean): Promise<UnlockResult> {
   // 1. Dérivation de la clé de déballage pour la clé PGP
+  console.log('Unlocking private key for record ID:', record.id);
   const wrappingKey = record.argon2Params
     ? await deriveWrappingKeyArgon2(passphrase, record.salt, {
         ...ARGON2_DEFAULTS,

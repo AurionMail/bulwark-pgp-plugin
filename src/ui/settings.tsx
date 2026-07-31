@@ -104,7 +104,16 @@ export function SettingsSection() {
       const { keyRecord } = await importOpenPgpPrivateKey(text, storagePass, currentPass);
       
       await saveKeyRecord(keyRecord);
-      await unlockPrivateKey(keyRecord, storagePass);
+      const unlockedSession = await unlockPrivateKey(keyRecord, storagePass);
+
+       broadcastUnlockKey({ 
+      id: keyRecord.id, 
+      unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
+      signingKey: unlockedSession.signingKey, 
+      decryptionKey: unlockedSession.decryptionKey,
+      aesKey: unlockedSession.aesKey
+    });
+
       host.toast.success(host.i18n.t('settings.success.private_key_imported', { identity: keyRecord.email || host.i18n.t('settings.label.generic_identity') }));
       await refresh();
     } catch (err) {
@@ -334,8 +343,6 @@ export function SettingsSection() {
       }
 
       await saveKeyRecord(updatedRecord);
-
-      await unlockPrivateKey(updatedRecord, newPass);
 
       // 7. Re-unlock for active session using updated record & new pass
       const unlockedSession = await unlockPrivateKey(updatedRecord, newPass);
@@ -581,7 +588,16 @@ export function SettingsSection() {
         recoverable: true,
         ...(!hasDefaultKey && { aesSalt: generateSalt() })
       });
-    await unlockPrivateKey(keyRecord, data.pass);
+
+    const unlockedSession = await unlockPrivateKey(keyRecord, data.pass);
+
+    broadcastUnlockKey({ 
+      id: keyRecord.id, 
+      unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
+      signingKey: unlockedSession.signingKey, 
+      decryptionKey: unlockedSession.decryptionKey,
+      aesKey: unlockedSession.aesKey
+    });
 
 
       // 2. Déchiffrement complet de la clé PGP en mémoire (pour obtenir la clé PGP en clair)
