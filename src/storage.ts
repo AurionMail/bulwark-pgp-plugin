@@ -167,10 +167,12 @@ function txPromise<T>(
 
 // ── Private Key Records CRUD ────────────────────────────────────────
 
-export async function saveKeyRecord(record: KeyRecord): Promise<void> {
+export async function saveKeyRecord(record: KeyRecord, sync: boolean = true): Promise<void> {
   const db = await openDB();
   await txPromise<IDBValidKey>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.put(record));
-  await syncKeysToAurion(await initAurionAPI());
+  if (sync) {
+    await syncKeysToAurion(await initAurionAPI());
+  }
 }
 
 export async function getKeyRecord(id: string): Promise<KeyRecord | undefined> {
@@ -192,10 +194,12 @@ export async function getDefaultKeyRecord(): Promise<KeyRecord |undefined>{
   return all.find((r) => r.default === true);
 }
 
-export async function deleteKeyRecord(id: string): Promise<void> {
+export async function deleteKeyRecord(id: string, sync: boolean = true): Promise<void> {
   const db = await openDB();
   await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(id));
-  await syncKeysToAurion(await initAurionAPI());
+  if (sync) {
+    await syncKeysToAurion(await initAurionAPI());
+  }
 }
 
 // ── Public Keys (Contacts) CRUD ─────────────────────────────────────

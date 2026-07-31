@@ -123,7 +123,7 @@ export async function syncfromAurion(api: AurionAPI): Promise<void> {
   // A. Supprimer les clés locales qui n'existent plus sur Aurion
   for (const localKey of localKeys) {
     if (!remoteKeyIds.has(localKey.id)) {
-      await deleteKeyRecord(localKey.id);
+      await deleteKeyRecord(localKey.id, false);
     }
   }
 
@@ -131,10 +131,10 @@ export async function syncfromAurion(api: AurionAPI): Promise<void> {
   for (const remoteKey of remoteKeys) {
     // Si la clé n'existe pas localement ou a été modifiée, on l'enregistre
     if (!localKeyIds.has(remoteKey.id)) {
-      await saveKeyRecord(remoteKey);
+      await saveKeyRecord(remoteKey, false);
     }else  if(!localKeys.find(k => k.id === remoteKey.id && k.encryptedPrivateKey === remoteKey.encryptedPrivateKey)) {
-        await deleteKeyRecord(remoteKey.id);
-        await saveKeyRecord(remoteKey);
+        await deleteKeyRecord(remoteKey.id, false);
+        await saveKeyRecord(remoteKey, false);
         await clearDangerousStorage();
     }
   }
