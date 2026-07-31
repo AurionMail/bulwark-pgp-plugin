@@ -6,7 +6,8 @@ const { useState, useEffect, useCallback, useRef } = React;
 import {
   saveKeyRecord, listKeyRecords, deleteKeyRecord, listPublicCerts, deletePublicCert,
   KeyRecord, PublicCert, exportPluginData, importPluginData,
-  getKeyRecord
+  getKeyRecord,
+  loadDangerousPassphrases
 } from '../storage.ts';
 
 import { importOpenPgpPrivateKey, importOpenPgpPublicKey, unlockPrivateKey } from '../pgp/import.ts';
@@ -23,12 +24,14 @@ import {
 import { uploadKey, requestVerify, lookup } from '../pgp/server.ts';
 import { bufferToBytes, bytesToBuffer, generateNumericRecoveryCode, generateSalt } from '../util.ts';
 import { OnboardingFlow } from './onboarding.tsx';
+import { config, settings } from '../shared.ts';
 import { getMasterPass } from '../aurion/session-broadcast.ts';
 
 export function SettingsSection() {
   const [keys, setKeys] = useState<KeyRecord[]>([]);
   const [certs, setCerts] = useState<PublicCert[]>([]); 
   const [unlocked, setUnlocked] = useState<Record<string, boolean>>({});
+  const [persisted, setPersisted] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<boolean>(false);
   const [capable, setCapable] = useState<boolean>(true);
   
@@ -45,10 +48,14 @@ export function SettingsSection() {
     setKeys(k); setCerts(c);
     
     const u: Record<string, boolean> = {};
+    const p: Record<string, boolean> = {};
+    const dict = await loadDangerousPassphrases();
     for (const rec of k) {
       u[rec.id] = !!(await fetchKeyFromBackground(rec.id));
+      p[rec.id] = !!dict[rec.id];
     }
     setUnlocked(u);
+    setPersisted(p);
   }, []);
 
   useEffect(() => { void refresh(); }, [refresh]);
@@ -104,6 +111,16 @@ export function SettingsSection() {
       const { keyRecord } = await importOpenPgpPrivateKey(text, storagePass, currentPass);
       
       await saveKeyRecord(keyRecord);
+      const unlockedSession = await unlockPrivateKey(keyRecord, storagePass);
+
+       broadcastUnlockKey({ 
+      id: keyRecord.id, 
+      unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
+      signingKey: unlockedSession.signingKey, 
+      decryptionKey: unlockedSession.decryptionKey,
+      aesKey: unlockedSession.aesKey
+    });
+
       host.toast.success(host.i18n.t('settings.success.private_key_imported', { identity: keyRecord.email || host.i18n.t('settings.label.generic_identity') }));
       await refresh();
     } catch (err) {
@@ -576,15 +593,28 @@ export function SettingsSection() {
         passphrase: data.pass,
         format: 'armored'
       });
-      let keyRecord;
       //if there is not default key, set this one as default and generate an AES salt for it
-      if (!keys.some(k => k.default)) {
-        keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
-        await saveKeyRecord({ ...keyRecord, default: true, recoverable: true, aesSalt: generateSalt() });
-      }else{
-        keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
-        await saveKeyRecord({ ...keyRecord, recoverable: true });
-      }
+      // Check for an existing default key
+      const hasDefaultKey = keys.some(k => k.default);
+      const keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
+
+      // Save the key record with the appropriate flags
+      await saveKeyRecord({
+        ...keyRecord,
+        default: !hasDefaultKey,
+        recoverable: true,
+        ...(!hasDefaultKey && { aesSalt: generateSalt() })
+      });
+
+    const unlockedSession = await unlockPrivateKey(keyRecord, data.pass);
+
+    broadcastUnlockKey({ 
+      id: keyRecord.id, 
+      unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
+      signingKey: unlockedSession.signingKey, 
+      decryptionKey: unlockedSession.decryptionKey,
+      aesKey: unlockedSession.aesKey
+    });
 
 
       // 2. Déchiffrement complet de la clé PGP en mémoire (pour obtenir la clé PGP en clair)
@@ -790,7 +820,8 @@ export function SettingsSection() {
                 h('div', null,
                   h('div', { style: { fontWeight: 600, fontSize: '14px' } }, 
                     rec.email || rec.subject || 'OpenPGP User',
-                    rec.default && h('span', { style: { marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-primary-smooth, #e0f2fe)', color: '#0369a1', fontWeight: 'normal' } }, host.i18n.t('settings.default_badge'))
+                    rec.default && h('span', { style: { marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' } }, host.i18n.t('settings.default_badge')),
+                    persisted[rec.id] && h('span', { style: { marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-warning, #fffbeb)', color: 'var(--color-warning-foreground, #92400e)', fontWeight: 'normal' } }, host.i18n.t('settings.persisted_badge'))
                   ),
                   h('div', { style: { fontSize: '12px', color: 'var(--color-muted-foreground, #64748b)' } },
                     `${rec.algorithm} · ${host.i18n.t('settings.key_created')} ${fmtDate(rec.notBefore)}${rec.notAfter ? ` · ${host.i18n.t('settings.key_expires')} ${fmtDate(rec.notAfter)}` : ` · ${host.i18n.t('settings.key_no_expiration')}`}${isExpired(rec.notAfter) ? ` · ${host.i18n.t('settings.key_expired')}` : ''}`),
@@ -866,7 +897,7 @@ export function SettingsSection() {
                   className: 'lock-btn',
                   style: { 
                     ...btn, 
-                    color: rec.webauthn ? 'var(--color-success, #16a34a)' : 'var(--color-muted-foreground)' 
+                    color: rec.webauthn ? 'var(--color-success, #16a34a)' : 'var(--color-foreground)' 
                   },
                   title: rec.webauthn ? host.i18n.t('settings.title.webauthn_ok') : host.i18n.t('settings.action.link_webauthn'),
                   disabled: busy,
