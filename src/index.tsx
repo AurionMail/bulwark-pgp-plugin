@@ -21,6 +21,9 @@ import { onRecipientChipsChange } from './hooks/onRecipientChipsChange.ts';
 import { ContactCrypto } from './ui/contact.tsx';
 import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
+import { activateAurionAPI, initAurionAPI, syncfromAurion } from './aurion/utils.ts';
+import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
+import { initAurionBackgroundSessionListener } from './aurion/session-broadcast.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -91,7 +94,8 @@ export const slots = {
     component: EmailSecuBanner,
     shouldShow,
     order: 60
-  }
+  },
+  'navigation-rail-bottom': { component: Navbar, order: 70 }
 };
 
 export async function activate(api :any) {
@@ -102,7 +106,11 @@ export async function activate(api :any) {
   }
   let locked = true;
   initBackgroundSessionListener();
-    if(settings().StoreDangerous && await config('allowPersistentKeys') === true){
+
+  locked = await activateAurionAPI();
+
+    if(settings().StoreDangerous && await config('allowPersistentKeys') === true && locked){
+      console.log('Restoring keys from dangerous storage', locked);
     await restoreKeysFromDangerousStorage();
     locked = false;
   }
