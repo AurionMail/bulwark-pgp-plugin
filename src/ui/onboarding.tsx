@@ -108,9 +108,7 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }
         'To get started, you need a private key. You can either import an existing one or generate a new keypair.'
       ),
       h('div', { style: { display: 'flex', gap: '12px', marginTop: '8px' } },
-        h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: onImportClick }, 'Upload Existing Key'),
         h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: () => setStep(3) }, 'Generate New Key'),
-        h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: onJsonImport }, 'Import from JSON')
       )
     );
   }
