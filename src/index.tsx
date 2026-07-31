@@ -21,7 +21,7 @@ import { onRecipientChipsChange } from './hooks/onRecipientChipsChange.ts';
 import { ContactCrypto } from './ui/contact.tsx';
 import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
-import { initAurionAPI, syncfromAurion } from './aurion/utils.ts';
+import { activateAurionAPI, initAurionAPI, syncfromAurion } from './aurion/utils.ts';
 import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
 import { initAurionBackgroundSessionListener } from './aurion/session-broadcast.ts';
 
@@ -106,12 +106,10 @@ export async function activate(api :any) {
   }
   let locked = true;
   initBackgroundSessionListener();
-  initAurionBackgroundSessionListener();
 
-  const aurionAPI = await initAurionAPI();
-  await syncfromAurion(aurionAPI);
+  locked = await activateAurionAPI();
 
-    if(settings().StoreDangerous && await config('allowPersistentKeys') === true){
+    if(settings().StoreDangerous && await config('allowPersistentKeys') === true && locked){
     await restoreKeysFromDangerousStorage();
     locked = false;
   }
