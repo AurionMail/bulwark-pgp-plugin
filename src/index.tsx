@@ -21,6 +21,7 @@ import { onRecipientChipsChange } from './hooks/onRecipientChipsChange.ts';
 import { ContactCrypto } from './ui/contact.tsx';
 import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
+import { onAfterLogout } from './hooks/onAfterLogout.ts';
 import { activateAurionAPI, initAurionAPI, syncfromAurion } from './aurion/utils.ts';
 import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
 import { initAurionBackgroundSessionListener } from './aurion/session-broadcast.ts';
@@ -68,13 +69,8 @@ export const hooks = {
   onSearchResults,
   onEmailsFetched,
   onRecipientChipsChange,
+  onAfterLogout,
   onBeforeLogout,
-  async onAfterLogout() {
-    console.log('onAfterLogout called');
-    if (settings().lockOnLogout === false) return;
-    console.log('Clearing dangerous storage on logout');
-    await clearDangerousStorage(); 
-  },
   async onAccountSwitch() {
     if (settings().lockOnLogout === false) return;
    await clearDangerousStorage();
