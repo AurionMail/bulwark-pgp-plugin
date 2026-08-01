@@ -24,6 +24,7 @@ import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
 import { activateAurionAPI, initAurionAPI, syncfromAurion } from './aurion/utils.ts';
 import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
 import { initAurionBackgroundSessionListener } from './aurion/session-broadcast.ts';
+import { onBeforeLogout } from './aurion/onBeforeLogout.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -67,6 +68,7 @@ export const hooks = {
   onSearchResults,
   onEmailsFetched,
   onRecipientChipsChange,
+  onBeforeLogout,
   async onAfterLogout() {
     console.log('onAfterLogout called');
     if (settings().lockOnLogout === false) return;

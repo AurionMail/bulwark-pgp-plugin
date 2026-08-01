@@ -75,6 +75,12 @@
       "label": "Aurion URL",
       "description": "The URL of the Aurion Server",
       "default": "https://localhost:8080"
+    },
+    "HydraURL": {
+      "type": "string",
+      "label": "Hydra URL",
+      "description": "The URL of the Hydra Server",
+      "default": "https://localhost:8080"
     }
   },
   "settingsSchema": {

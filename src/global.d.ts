@@ -25,6 +25,7 @@ declare module '@plugin-host' {
   export const user: {
     getAccounts(): Promise<AccountEntry[]>;
     getIdentities(): Promise<Identity[]>;
+    logout(): Promise<void>;
   }
   export const log: {
     info(msg: string, ...args: any[]): void;
