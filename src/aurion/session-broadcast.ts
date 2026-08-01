@@ -1,4 +1,4 @@
-import { clearDangerousStorage, listKeyRecords, deleteKeyRecord } from '../storage.ts'
+import host from '@plugin-host';
 export const CHANNEL_NAME = 'aurion-session-bus';
 
 let _masterPass: string | undefined = undefined;
@@ -7,7 +7,8 @@ type SessionMessage =
   { type: 'INITIALIZE_MASTER_PASS'; masterPass: string }// This is called if a secret is detected, i.e. the user has tape its password a fosrt time to connect AURION
   | { type: 'REQUEST_MASTER_PASS'; requestId: string; }// AURION
   | { type: 'RESPONSE_MASTER_PASS'; requestId: string; masterPass: string | undefined  }// AURION
-  | { type: 'LOGOUT'; requestId: string; };// AURION
+  | { type: 'LOGOUT_REQUEST'; requestId: string; }// AURION
+  | { type: 'RESPONSE_LOGOUT_REQUEST'; requestId: string;   };// AURION
 
 
 export function initAurionBackgroundSessionListener(): void {
@@ -28,6 +29,15 @@ export function initAurionBackgroundSessionListener(): void {
           requestId: msg.requestId,
           masterPass: _masterPass
         });
+        break;
+      }
+      case 'LOGOUT_REQUEST': {
+        
+        channel.postMessage({
+          type: 'RESPONSE_LOGOUT_REQUEST',
+          requestId: msg.requestId
+        });
+        host.user.logout();
         break;
       }
     }
