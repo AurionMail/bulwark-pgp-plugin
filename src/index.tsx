@@ -21,6 +21,7 @@ import { onRecipientChipsChange } from './hooks/onRecipientChipsChange.ts';
 import { ContactCrypto } from './ui/contact.tsx';
 import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
+import { onAfterLogout } from './hooks/onAfterLogout.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -64,12 +65,7 @@ export const hooks = {
   onSearchResults,
   onEmailsFetched,
   onRecipientChipsChange,
-  async onAfterLogout() {
-    console.log('onAfterLogout called');
-    if (settings().lockOnLogout === false) return;
-    console.log('Clearing dangerous storage on logout');
-    await clearDangerousStorage(); 
-  },
+  onAfterLogout,
   async onAccountSwitch() {
     if (settings().lockOnLogout === false) return;
    await clearDangerousStorage();

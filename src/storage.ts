@@ -186,6 +186,11 @@ export async function deleteKeyRecord(id: string): Promise<void> {
   await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(id));
 }
 
+export async function deleteAllKeyRecords(): Promise<void> {
+  const db = await openDB();
+  await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.clear());
+}
+
 // ── Public Keys (Contacts) CRUD ─────────────────────────────────────
 
 export async function savePublicCert(cert: PublicCert): Promise<void> {
