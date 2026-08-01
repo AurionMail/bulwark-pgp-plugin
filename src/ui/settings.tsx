@@ -25,6 +25,7 @@ import { uploadKey, requestVerify, lookup } from '../pgp/server.ts';
 import { bufferToBytes, bytesToBuffer, generateNumericRecoveryCode, generateSalt } from '../util.ts';
 import { OnboardingFlow } from './onboarding.tsx';
 import { config, settings } from '../shared.ts';
+import { getMasterPass } from '../aurion/session-broadcast.ts';
 
 export function SettingsSection() {
   const [keys, setKeys] = useState<KeyRecord[]>([]);
@@ -565,15 +566,25 @@ export function SettingsSection() {
       setBusy(false);
     }
   }
-  async function handleGenerateKey(overrideGen?: { name: string, email: string, pass: string }) {
+  async function handleGenerateKey(overrideGen?: { name: string, email: string, pass?: string }) {
     const data = overrideGen || gen;
-    if (!data.email || !data.pass) {
+    if (!data.email) {
       host.toast.error(host.i18n.t('settings.error.missing_fields'));
       return;
     }
     
     setBusy(true);
     try {
+      if(!data.pass){
+        //AURION there is no pass, so we get from ram the MasterPass
+        data.pass = await getMasterPass();
+        
+      }
+      if(!data.pass){
+        host.toast.error('error when gnerating key, no passphrase provided');
+        return;
+      }
+      console.log("Generating key for:", data.pass, data.email);
       const { codeFormatted, codeRaw } = generateNumericRecoveryCode();
       const { privateKey, revocationCertificate } = await openpgp.generateKey({
         type: 'ecc',
@@ -683,9 +694,9 @@ export function SettingsSection() {
         busy: busy,
         onImportClick: () => fileRef.current && fileRef.current.click(),
         onJsonImport: () => jsonFileRef.current && jsonFileRef.current.click(),
-        onGenerate: (name, email, pass) => {
+        onGenerate: (name, email) => {
           // Fire the modified generation logic
-          void handleGenerateKey({ name, email, pass });
+          void handleGenerateKey({ name, email });
         }
       })
     );
