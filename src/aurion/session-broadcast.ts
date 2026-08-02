@@ -32,7 +32,7 @@ export function initAurionBackgroundSessionListener(): void {
         break;
       }
       case 'LOGOUT_REQUEST': {
-        
+        console.log('logout request received');
         channel.postMessage({
           type: 'RESPONSE_LOGOUT_REQUEST',
           requestId: msg.requestId
