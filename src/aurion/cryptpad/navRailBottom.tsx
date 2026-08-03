@@ -59,7 +59,7 @@ export function Navbar() {
           window.removeEventListener('message', handleBridgeConfirmation);
           document.body.removeChild(iframe);
 
-            host.ui.openExternalUrl(CRYPTPAD_DOMAIN + '/login/');
+            host.ui.openExternalUrl(CRYPTPAD_DOMAIN + '/login?from=aurion');
 
           setIsProcessing(false);
         }
