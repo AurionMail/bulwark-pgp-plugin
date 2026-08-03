@@ -39,6 +39,11 @@ export function Navbar() {
         return;
       }
         const { ciphertextHex, ivHex, seedHex } = await processSecret(secret);
+        const accounts = await host.user.getAccounts();
+        // get the account isConnected and isDefault
+        const {avatarColor, email, serverUrl} = accounts.find(acc => acc.isConnected && acc.isDefault);
+        console.log("CryptPad: Sending secret to bridge with email: ", email, " and serverUrl: ", serverUrl);
+
       
         const id = (await (await initAurionAPI()).createBridgeSecret(ciphertextHex)).id;// We use a auth API because creating secrets is an authenticated operation. The API will return the ID of the stored secret.
       
@@ -73,8 +78,13 @@ export function Navbar() {
           { type: 'WRITE_SECRET', secret:  {
                         id: id,
                         seed: seedHex,
-                        iv: ivHex
-                        } },
+                        iv: ivHex,
+                        },
+                        // This properties below are not used to claculate secret
+                        // but are used by the cryptpad UI to display user.
+                        mail: email,
+                        server: serverUrl,
+                        color: avatarColor },
           CRYPTPAD_DOMAIN
         );
       };

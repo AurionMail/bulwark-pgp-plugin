@@ -37,6 +37,7 @@ export function initAurionBackgroundSessionListener(): void {
           type: 'RESPONSE_LOGOUT_REQUEST',
           requestId: msg.requestId
         });
+        host.storage.set('logoutAsked', Date.now());
         host.user.logout();
         break;
       }
