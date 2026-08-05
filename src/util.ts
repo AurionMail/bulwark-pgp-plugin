@@ -340,3 +340,29 @@ export interface AccountEntry {
   isConnected: boolean;
   isDefault: boolean;
 }
+
+export interface PublicKeyInfo {
+  id: string;
+  accountId: string;
+  description: string;
+  key: string;
+  createdAt?: string | null;
+  expiresAt?: string | null;
+  emailAddresses: string[];
+}
+
+export interface PublicKeyInput {
+  description: string;
+  key: string;
+  emailAddresses?: string[];
+  expiresAt?: string | null;
+}
+
+export type EncryptionType = 'Disabled' | 'Aes128' | 'Aes256';
+
+export interface EncryptionAtRestConfig {
+  type: EncryptionType;
+  publicKeyId: string | null;
+  encryptOnAppend?: boolean;
+  allowSpamTraining?: boolean;
+}

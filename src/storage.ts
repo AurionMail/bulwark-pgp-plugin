@@ -55,6 +55,7 @@ export interface KeyRecord {
     timeCost: number;   // ex: 3
     parallelism: number;// ex: 4
   };
+  serverSide?: boolean;
 }
 
 export interface PublicCert {

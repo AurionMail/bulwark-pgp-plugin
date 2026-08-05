@@ -11,9 +11,14 @@ declare module '@plugin-host' {
     submitRaw(blob: ArrayBuffer, identityId: string, options?: { envelopeRecipients: string[] }): Promise<void>;
     importRaw(blob: ArrayBuffer, mailboxRoles: string[], options?: { identityId: string; envelopeRecipients: string[] }): Promise<void>;
   };
-  export const webauthn: {
-    getOrCreate(masterCredIdBytes?: number[], rpId?: string, userVisibleName?: string): Promise<{ credentialId: number[]; prfSecret: number[] }>;
-  };
+  export const crypto: {
+      getPublicKeys() : Promise<PublicKeyInfo[]>;
+      createPublicKey(input: PublicKeyInput): Promise<string>;//id of key
+      removePublicKey(keyId: string): Promise<void>;
+      setEncryptionAtRest(config: EncryptionAtRestConfig): Promise<void>;
+      getEncryptionAtRest(): Promise<EncryptionAtRestConfig>;
+      getOrCreateWebAuthn(masterCredIdBytes?: number[], rpId?: string, userVisibleName?: string): Promise<{ credentialId: number[]; prfSecret: number[] }>;
+    },
   export const upfiles: {
     get(fileId: string): Promise<File>;
     save(formerId: string, file: File): Promise<string>;
