@@ -31,7 +31,7 @@
   ],
   "httpOrigins": [
     "https://keys.openpgp.org",
-    "https://aurion.mail.aurionmail.org"
+    "https://api.aurionmail.org"
   ],
     "frameOrigins": [
     "https://pad.aurionmail.org"
