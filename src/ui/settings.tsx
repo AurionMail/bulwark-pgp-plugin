@@ -22,7 +22,7 @@ import {
   subscribeToKeyUpdates
 } from '../pgp/session-broadcast.ts';
 import { uploadKey, requestVerify, lookup } from '../pgp/server.ts';
-import { bufferToBytes, bytesToBuffer, generateNumericRecoveryCode, generateSalt } from '../util.ts';
+import { bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../util.ts';
 import { OnboardingFlow } from './onboarding.tsx';
 import { config, settings } from '../shared.ts';
 import { getMasterPass } from '../aurion/session-broadcast.ts';
@@ -163,7 +163,7 @@ export function SettingsSection() {
         ? bufferToBytes(existingKeyWithWebAuthn.webauthn.credentialId)
         : undefined;
 
-      const response = await host.webauthn.getOrCreate(masterCredIdBytes, 'bulwark-webmail-pgp-true-e2e', 'Master Key for Bulwark PGP Plugin');
+      const response = await host.crypto.getOrCreateWebAuthn(masterCredIdBytes, 'bulwark-webmail-pgp-true-e2e', 'Master Key for Bulwark PGP Plugin');
       
       const credentialId = bytesToBuffer(response.credentialId);
       const prfSecret = bytesToBuffer(response.prfSecret);
@@ -201,7 +201,7 @@ export function SettingsSection() {
       const firstWebAuthnKey = webauthnKeys[0].webauthn!;
       const masterCredIdBytes = bufferToBytes(firstWebAuthnKey.credentialId);
 
-      const response = await host.webauthn.getOrCreate(masterCredIdBytes);
+      const response = await host.crypto.getOrCreateWebAuthn(masterCredIdBytes);
       const prfSecret = bytesToBuffer(response.prfSecret);
       
       for (const rec of webauthnKeys) {
@@ -526,6 +526,43 @@ export function SettingsSection() {
   }
 }
 
+  async function handleSetServerSideEncryption(k: KeyRecord) {
+  setBusy(true);
+  try {
+      const pkey = k.publicKey;
+      const inputPayload: PublicKeyInput ={
+        description: "Key imported by PGP True E2E Bulwark Plugin",
+        key: pkey,
+      }
+      const pkeyId = await host.crypto.createPublicKey(inputPayload);
+      const configInput: EncryptionAtRestConfig = {  
+        type: "Aes256",
+        publicKeyId: pkeyId,
+      }
+      await host.crypto.setEncryptionAtRest(configInput);
+      
+      await Promise.all(
+      keys.map(async (kcurrent) => {
+        const isCurrent = kcurrent.id === k.id;
+        
+        const updatedKey = {
+          ...kcurrent,
+          serverSide: isCurrent
+        };
+
+        return saveKeyRecord(updatedKey);
+      })
+    );
+
+    await refresh();
+  } catch (err) {
+    const error = err as Error;
+    host.toast.error(host.i18n.t('settings.error.generic', { message: error?.message ? error.message : String(err) }));
+  } finally {
+    setBusy(false);
+  }
+}
+
   async function handleExportJSON() {
     setBusy(true);
     try {
@@ -821,6 +858,7 @@ export function SettingsSection() {
                   h('div', { style: { fontWeight: 600, fontSize: '14px' } }, 
                     rec.email || rec.subject || 'OpenPGP User',
                     rec.default && h('span', { style: { marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' } }, host.i18n.t('settings.default_badge')),
+                    rec.serverSide && h('span', { style: { marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' } }, host.i18n.t('settings.server_side_badge')),
                     persisted[rec.id] && h('span', { style: { marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-warning, #fffbeb)', color: 'var(--color-warning-foreground, #92400e)', fontWeight: 'normal' } }, host.i18n.t('settings.persisted_badge'))
                   ),
                   h('div', { style: { fontSize: '12px', color: 'var(--color-muted-foreground, #64748b)' } },
@@ -832,6 +870,24 @@ export function SettingsSection() {
                 ),
               ),
               h('div', { style: { display: 'flex', gap: '6px', alignItems: 'flex-start' } },
+                h('button', {
+                      type: 'button',
+                      style: { ...btn, color: 'var(--color-foreground)'},
+                      className: 'lock-btn',
+                      title: host.i18n.t('settings.action.upload_server'),
+                      disabled: busy,
+                      onClick: () => handleSetServerSideEncryption(rec),
+                    },
+                      h('svg', {
+                        xmlns: 'http://www.w3.org/2000/svg',
+                        width: '1rem',
+                        height: '1rem',
+                        viewBox: '0 -960 960 960',
+                        fill: 'currentColor',
+                        'aria-hidden': 'true'
+                      }, [
+                        h('path', { d: 'M300-720q-25 0-42.5 17.5T240-660q0 25 17.5 42.5T300-600q25 0 42.5-17.5T360-660q0-25-17.5-42.5T300-720Zm0 400q-25 0-42.5 17.5T240-260q0 25 17.5 42.5T300-200q25 0 42.5-17.5T360-260q0-25-17.5-42.5T300-320ZM160-840h640q17 0 28.5 11.5T840-800v280q0 17-11.5 28.5T800-480H160q-17 0-28.5-11.5T120-520v-280q0-17 11.5-28.5T160-840Zm40 80v200h560v-200H200Zm-40 320h640q17 0 28.5 11.5T840-400v280q0 17-11.5 28.5T800-80H160q-17 0-28.5-11.5T120-120v-280q0-17 11.5-28.5T160-440Zm40 80v200h560v-200H200Zm0-400v200-200Zm0 400v200-200Z' })
+                      ])),
                 unlocked[rec.id]
                   ? h('button', {
                       type: 'button',

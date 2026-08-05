@@ -163,6 +163,7 @@
       "settings.action.lock": "Lock this key",
       "settings.action.unlock": "Unlock this key",
       "settings.action.delete": "Delete this key",
+      "settings.action.upload_server": "Upload this key to server and enable server-side encryption with this key",
       "settings.add_private_key": "Add a private key",
       "settings.public_keys_title": "Recipient public keys",
       "settings.public_keys_desc": "Public keys (ASCII Armored) of contacts you send encrypted mail to.",
@@ -308,7 +309,8 @@
       "prompt.no_default_key.message_sending": "Your organisation has enabled the 'Force Encryption' option, but you do not have a default key set. Please import or generate a key in OpenPGP settings to continue. You will not be able to send emails until you have a default key. This email was NOT sent.",
       "prompt.block_until_default_key_is_available.message_sending": "Your organisation has enabled the 'Block until default key is available' option, but your default key is not unlocked. Please unlock your default key in OpenPGP settings to continue. You will not be able to send emails until your default key is unlocked. This email was NOT sent.",
       "settings.confirm.delete_private_confirm_label": "Type the email of the key to confirm deletion: ",
-      "settings.persisted_badge": "Persisted"
+      "settings.persisted_badge": "Persisted",
+      "settings.server_side_badge": "Used for server encryption "
     }
   }
 }
