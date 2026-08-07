@@ -30,6 +30,7 @@ declare module '@plugin-host' {
   export const user: {
     getAccounts(): Promise<AccountEntry[]>;
     getIdentities(): Promise<Identity[]>;
+    logout(): Promise<void>;
   }
   export const log: {
     info(msg: string, ...args: any[]): void;
@@ -60,6 +61,10 @@ declare module '@plugin-host' {
       downloadFile: (opts: { content: string; filename: string; contentType?: string }) => Promise<void>;
       rerenderEmail(): void;
       rerenderFetchedEmails(): void;
+      openExternalUrl(url: string): void;
+  };
+  export const http: {
+    fetch(url: string, init: any): Promise<any>;
   };
   export const plugin: {
     settings?: {
