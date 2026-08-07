@@ -8,9 +8,10 @@
  */
 import host from '@plugin-host';
 import { base64ToBuffer, bufferToBase64 } from "./util.ts";
+import { initAurionAPI, syncKeysToAurion } from './aurion/utils.ts';
 
-const DB_NAME = 'pgp-plugin-store';
-const DB_VERSION = 8;
+const DB_NAME = 'aurion-plugin-store';
+const DB_VERSION = 9;
 const KEY_RECORDS_STORE = 'key-records';
 const PUBLIC_CERTS_STORE = 'public-certs';
 const SESSION_KEYS_STORE = 'session-keys';
@@ -18,6 +19,9 @@ const MESSAGE_CACHE_STORE = 'message-cache';
 const RECIPIENTS_STORE = 'recipients-cache'; 
 const DANGEROUS_KEYS_STORE = 'dangerous-keys';
 const DANGEROUS_MASTER_KEY_STORE = 'dangerous-master-key';
+// ── AURION DATA ─────────────────────────────────────
+const AURION_DATA = 'aurion-data';
+const AURION_SECRET_STORE = 'aurion-secret'; // Store
 
 // ── Interfaces ──────────────────────────────────────
 
@@ -130,6 +134,12 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(DANGEROUS_MASTER_KEY_STORE)) {
         db.createObjectStore(DANGEROUS_MASTER_KEY_STORE);
       }
+      if (!db.objectStoreNames.contains(AURION_DATA)) {
+        db.createObjectStore(AURION_DATA);
+      }
+      if (!db.objectStoreNames.contains(AURION_SECRET_STORE)) {
+        db.createObjectStore(AURION_SECRET_STORE);
+      }
     };
     
     request.onsuccess = () => resolve(request.result);
@@ -158,9 +168,12 @@ function txPromise<T>(
 
 // ── Private Key Records CRUD ────────────────────────────────────────
 
-export async function saveKeyRecord(record: KeyRecord): Promise<void> {
+export async function saveKeyRecord(record: KeyRecord, sync: boolean = true): Promise<void> {
   const db = await openDB();
   await txPromise<IDBValidKey>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.put(record));
+  if (sync) {
+    await syncKeysToAurion(await initAurionAPI());
+  }
 }
 
 export async function getKeyRecord(id: string): Promise<KeyRecord | undefined> {
@@ -182,9 +195,12 @@ export async function getDefaultKeyRecord(): Promise<KeyRecord |undefined>{
   return all.find((r) => r.default === true);
 }
 
-export async function deleteKeyRecord(id: string): Promise<void> {
+export async function deleteKeyRecord(id: string, sync: boolean = true): Promise<void> {
   const db = await openDB();
   await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(id));
+  if (sync) {
+    await syncKeysToAurion(await initAurionAPI());
+  }
 }
 
 export async function deleteAllKeyRecords(): Promise<void> {
@@ -501,4 +517,53 @@ export async function importPluginData(jsonContent: string): Promise<void> {
   } catch (error) {
     throw error;
   }
+}
+
+//  ─── AURION Store ──────────────────────────────────────
+export interface localBridgeSecret {
+  seed: string;
+  id: string;
+  iv: string;
+}
+
+const TOKEN_KEY = 'aurion-jwt-token';
+const SECRET_KEY = 'aurion-secret';
+/**
+ * Sets or updates the JWT token in the AURION_DATA store.
+ */
+export async function setToken(token: string): Promise<void> {
+  const db = await openDB();
+  await txPromise<IDBValidKey>(db, AURION_DATA, 'readwrite', (s) => s.put(token, TOKEN_KEY));
+}
+
+/**
+ * Reads the JWT token from the AURION_DATA store.
+ */
+export async function getToken(): Promise<string | undefined> {
+  const db = await openDB();
+  return txPromise<string | undefined>(db, AURION_DATA, 'readonly', (s) => s.get(TOKEN_KEY));
+}
+
+/**
+ * Deletes the JWT token from the AURION_DATA store.
+ */
+export async function removeToken(): Promise<void> {
+  const db = await openDB();
+  await txPromise<undefined>(db, AURION_DATA, 'readwrite', (s) => s.delete(TOKEN_KEY));
+}
+
+/**
+ * Reads the single secret from the AURION_DATA store.
+ */
+export async function readSecret(): Promise<localBridgeSecret | undefined> {
+  const db = await openDB();
+  return txPromise<localBridgeSecret | undefined>(db, AURION_SECRET_STORE, 'readonly', (s) => s.get(SECRET_KEY));
+}
+
+/**
+ * Removes the single secret from the AURION_DATA store.
+ */
+export async function removeSecret(): Promise<void> {
+  const db = await openDB();
+  await txPromise<undefined>(db, AURION_SECRET_STORE, 'readwrite', (s) => s.delete(SECRET_KEY));
 }
