@@ -131,18 +131,26 @@ export async function importOpenPgpPrivateKey(
 export async function unlockPrivateKey(record: KeyRecord, passphrase: string, automated?: boolean): Promise<UnlockResult> {
   // 1. Dérivation de la clé de déballage pour la clé PGP
   console.log('Unlocking private key for record ID:', record.id);
-  const wrappingKey = record.argon2Params
-    ? await deriveWrappingKeyArgon2(passphrase, record.salt, {
+  let masterKey: CryptoKey | undefined;
+  let PGPWrappingKey: CryptoKey | undefined;
+  let aesKey: CryptoKey | undefined;
+
+  if(record.argon2Params !== undefined) {
+    masterKey = await deriveMasterHkdfKey(passphrase, record.salt, {
         ...ARGON2_DEFAULTS,
         ...record.argon2Params
-      })
-    : await deriveWrappingKey(passphrase, record.salt, record.kdfIterations);
+      });
+
+    PGPWrappingKey = await deriveSubKey(masterKey, 'pgp-wrapping-key');
+  }else{//legacy path for existing keys without argon2Params
+    PGPWrappingKey = await deriveWrappingKey(passphrase, record.salt, record.kdfIterations);
+  }
 
   let rawTextBytes: ArrayBuffer;
   try {
     rawTextBytes = await crypto.subtle.decrypt(
       { name: 'AES-GCM', iv: record.iv },
-      wrappingKey,
+      PGPWrappingKey,
       record.encryptedPrivateKey
     );
   } catch {
@@ -168,9 +176,14 @@ export async function unlockPrivateKey(record: KeyRecord, passphrase: string, au
     await persistPassphraseToDangerousStorage(record.id, passphrase).catch(console.error);
   }
 
-  let aesKey;
-  if (record.default === true && record.aesSalt) {
-    aesKey = await deriveAesKeyFromPgpParams(passphrase, record.aesSalt, record.kdfIterations);
+  if (record.default === true && (masterKey !== undefined || record.aesSalt !== undefined)) {
+    if(masterKey){
+      aesKey = await deriveSubKey(masterKey, 'aes-key');
+    }else if(record.aesSalt !== undefined){// legacy path for existing keys without argon2Params
+      aesKey = await deriveAesKeyFromPgpParams(passphrase, record.aesSalt, record.kdfIterations);
+    }else{
+      throw new Error('Cannot derive AES key: missing parameters');
+    }
     await getIndex(aesKey, passphrase, record);
   }
 
@@ -268,44 +281,50 @@ async function deriveWrappingKey(passphrase: string, salt: ArrayBuffer, iteratio
   );
 }
 
-async function deriveWrappingKeyArgon2(
+async function deriveMasterHkdfKey(
   passphrase: string,
   salt: ArrayBuffer,
   params = ARGON2_DEFAULTS
 ): Promise<CryptoKey> {
-  // Dérivation de la clé brute via WebAssembly
-  const rawKeyHex = await argon2id({
+  const rawKeyBytes = await argon2id({
     password: passphrase,
     salt: new Uint8Array(salt),
     parallelism: params.parallelism,
     iterations: params.timeCost,
     memorySize: params.memoryCost,
     hashLength: params.hashLength,
-    outputType: 'hex'
+    outputType: 'binary'
   });
 
-  // Convertit Hex -> Uint8Array
-  const rawKeyBytes = new Uint8Array(
-    rawKeyHex.match(/.{1,2}/g)!.map((byte) => parseInt(byte, 16))
-  );
 
-  // Importe la clé dérivée dans WebCrypto API pour AES-GCM
+  // Importe en tant que clé maître HKDF (permet la dérivation de sous-clés)
   return crypto.subtle.importKey(
     'raw',
-    rawKeyBytes,
-    { name: 'AES-GCM' },
+    rawKeyBytes as BufferSource,
+    { name: 'HKDF' },
     false,
-    ['encrypt', 'decrypt']
+    ['deriveKey', 'deriveBits']
   );
 }
 
+async function deriveSubKey(
+  masterHkdfKey: CryptoKey,
+  infoString: string
+): Promise<CryptoKey> {
+  const encoder = new TextEncoder();
 
-async function encryptPrivateKeyDataLegacy(pkcs8Bytes: ArrayBuffer, passphrase: string): Promise<EncryptedData> {
-  const salt = crypto.getRandomValues(new Uint8Array(32)).buffer as ArrayBuffer;
-  const iv = crypto.getRandomValues(new Uint8Array(12)).buffer as ArrayBuffer;
-  const wrappingKey = await deriveWrappingKey(passphrase, salt, KDF_ITERATIONS);
-  const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, pkcs8Bytes);
-  return { encrypted, salt, iv };
+  return crypto.subtle.deriveKey(
+    {
+      name: 'HKDF',
+      hash: 'SHA-256',
+      salt: new Uint8Array(0), 
+      info: encoder.encode(infoString)
+    },
+    masterHkdfKey,
+    { name: 'AES-GCM', length: 256 },
+    false,
+    ['encrypt', 'decrypt']
+  );
 }
 
 async function encryptPrivateKeyData(
@@ -316,7 +335,8 @@ async function encryptPrivateKeyData(
   const salt = crypto.getRandomValues(new Uint8Array(16)).buffer as ArrayBuffer;
   const iv = crypto.getRandomValues(new Uint8Array(12)).buffer as ArrayBuffer;
 
-  const wrappingKey = await deriveWrappingKeyArgon2(passphrase, salt, ARGON2_DEFAULTS);
+  const masterKey = await deriveMasterHkdfKey(passphrase, salt, ARGON2_DEFAULTS);
+  const wrappingKey = await deriveSubKey(masterKey, 'pgp-wrapping-key');
   const encrypted = await crypto.subtle.encrypt({ name: 'AES-GCM', iv }, wrappingKey, pkcs8Bytes);
 
   return { encrypted, salt, iv, argon2Params: ARGON2_DEFAULTS };
