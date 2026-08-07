@@ -503,7 +503,7 @@ export function SettingsSection() {
           default: isCurrent ? isChecked : (isChecked ? false : k.default)
         };
 
-        if (isCurrent && isChecked && !k.aesSalt) {
+        if (isCurrent && isChecked && !k.aesSalt && !k.argon2Params ) {
           updatedKey.aesSalt = generateSalt();
         }
 
@@ -629,7 +629,6 @@ export function SettingsSection() {
         ...keyRecord,
         default: !hasDefaultKey,
         recoverable: true,
-        ...(!hasDefaultKey && { aesSalt: generateSalt() })
       });
 
     const unlockedSession = await unlockPrivateKey(keyRecord, data.pass);
