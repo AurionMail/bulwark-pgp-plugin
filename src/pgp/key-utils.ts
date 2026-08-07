@@ -257,15 +257,10 @@ async function maybeAutoImportSigner(pub:string) {
   }
 }
 
-/**
- * Chiffre un texte fixe avec la clé AES existante pour créer le secret CryptPad.
- * Ne nécessite AUCUNE modification de ta fonction de dérivation d'origine !
- */
-export async function deriveSecret(aesKey: CryptoKey, salt:string): Promise<string> {
+export async function deriveSecret(aesKey: CryptoKey, salt: string): Promise<string> {
   const enc = new TextEncoder();
-  
   const messageFixe = enc.encode(salt);
-  const iv = new Uint8Array(12); 
+  const iv = new Uint8Array(12);
 
   const ciphertext = await crypto.subtle.encrypt(
     {
@@ -275,9 +270,12 @@ export async function deriveSecret(aesKey: CryptoKey, salt:string): Promise<stri
     aesKey,
     messageFixe
   );
-  const uint8Array = new Uint8Array(ciphertext);
-  const binaryString = Array.from(uint8Array, byte => String.fromCharCode(byte)).join('');
-  return btoa(binaryString);
+
+  const secretHash = await crypto.subtle.digest("SHA-256", ciphertext);
+
+  return Array.from(new Uint8Array(secretHash))
+    .map((b) => b.toString(16).padStart(2, "0"))
+    .join("");
 }
 
 export async function recipientKeysFor(emails: string[]): Promise<{
