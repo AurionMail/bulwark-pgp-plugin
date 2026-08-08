@@ -202,28 +202,20 @@ export async function importOpenPgpPublicKey(armoredPublicKeyText: string): Prom
   const email = (info.emailAddresses[0] || '').toLowerCase();
   if (!email) throw new Error('Key has no valid email address associated');
 
-  // Encodage de la clé PGP armurée en Base64 pour l'URI
-  // Note: En environnement navigateur, btoa(unescape(encodeURIComponent(...))) gère correctement l'UTF-8
-  // 1. Convertit la chaîne UTF-8 en tableau d'octets (Uint8Array)
   const bytes = new TextEncoder().encode(armoredPublicKeyText);
 
-  // 2. Convertit le tableau d'octets en chaîne binaire reconnue par btoa
   const binaryString = Array.from(bytes, (byte) => String.fromCharCode(byte)).join('');
 
-  // 3. Encode en Base64
   const base64Key = btoa(binaryString);
   const keyUri = `data:application/pgp-keys;base64,${base64Key}`;
 
-  // 1. Recherche des contacts existants
   const searchResults = await contacts.search(email);
   
-  // Filtrage strict sur l'adresse e-mail exacte
   const existingContact = searchResults.find(c => 
     c.emails && Object.values(c.emails as Record<string, ContactEmail>).some(e => e.address.toLowerCase() === email)
   );
 
   if (existingContact) {
-    // 2. Mise à jour du contact existant
     const keyId = `pgp_${info.fingerprint || Date.now()}`;
     const updatedCryptoKeys = {
       ...existingContact.cryptoKeys,
@@ -237,12 +229,9 @@ export async function importOpenPgpPublicKey(armoredPublicKeyText: string): Prom
       cryptoKeys: updatedCryptoKeys
     });
   } else {
-    // 3. Création d'un nouveau contact si aucun n'existe
     const keyId = `pgp_${info.fingerprint || Date.now()}`;
-    const newContactId = generateUUID(); // Ou laissez l'API générer l'ID si géré ainsi
     
     const newContact: ContactCard = {
-      id: newContactId,
       addressBookIds: {},
       name: {
         full: info.subject || email,
