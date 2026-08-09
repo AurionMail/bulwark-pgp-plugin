@@ -7,6 +7,7 @@ declare module '@plugin-host' {
   };
   export const jmap: {
     fetchBlob(blobId: string, options?: { name?: string; type?: string }): Promise<Uint8Array>;
+    uploadBlob(blob: Uint8Array, name: string, type: string): Promise<{ blobId: string; size: number; type: string; }>;
     sendRaw(blob: ArrayBuffer, identityId: string, options: { envelopeRecipients: string[] }): Promise<void>;
     submitRaw(blob: ArrayBuffer, identityId: string, options?: { envelopeRecipients: string[] }): Promise<void>;
     importRaw(blob: ArrayBuffer, mailboxRoles: string[], options?: { identityId: string; envelopeRecipients: string[] }): Promise<void>;
