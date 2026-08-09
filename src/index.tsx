@@ -22,6 +22,7 @@ import { ContactCrypto } from './ui/contact.tsx';
 import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
 import { onAfterLogout } from './hooks/onAfterLogout.ts';
+import {onBeforeComposeOpenToReply, onBeforeComposeOpenToReplyAll, onBeforeComposeOpenToForward} from './hooks/onBeforeComposeOpenTo.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -70,6 +71,9 @@ export const hooks = {
     if (settings().lockOnLogout === false) return;
    await clearDangerousStorage();
   },
+  onBeforeComposeOpenToReply,
+  onBeforeComposeOpenToReplyAll,
+  onBeforeComposeOpenToForward
 };
 
 function shouldShow(extraProps: any) {
