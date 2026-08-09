@@ -86,14 +86,14 @@ export async function common(email: Email, withAttachments: boolean): Promise<Em
                     binaryData = new Uint8Array(await encryptedBlob.arrayBuffer());
                 }
 
-                const mimeType = shouldEncrypt ? 'application/octet-stream' : (att.type || 'application/octet-stream');
-                const name = shouldEncrypt ? `encrypted.pgp` : (att.name || 'unknown');
+                const mimeType =att.type;// shouldEncrypt ? 'application/octet-stream' : (att.type || 'application/octet-stream');
+                const name = att.name;//shouldEncrypt ? `encrypted.pgp` : (att.name || 'unknown');
                 const uploadResult = await host.jmap.uploadBlob(binaryData, 'unknown', mimeType);
 
                 return {
                     partId: `pgp-${uploadResult.blobId}`,
                     blobId: uploadResult.blobId,
-                    size: binaryData.byteLength, // Taille réelle du nouveau buffer téléversé
+                    size: binaryData.byteLength,
                     name: name,
                     type: mimeType,
                     disposition: 'attachment',
