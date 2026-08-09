@@ -117,7 +117,7 @@ export async function onBeforeComposeOpenToForward(email:Email): Promise<Email> 
 }
 
 export async function onBeforeComposeOpenToForwardAttachments(email:Email): Promise<Email> {
-    //return await common(email, true);
+    //for now, we don't decrypt attachments. It would require decrypt the mime and upload it
     return email
 }
 
