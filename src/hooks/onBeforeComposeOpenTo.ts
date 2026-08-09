@@ -1,60 +1,153 @@
 import { onRenderEmailBody } from "./onRenderEmailBody.ts";
 import { Email, MimeParsedAttachment } from "../types.ts";
+import host from "@plugin-host";
+import { config, settings } from "../shared.ts";
+import { getDefaultPublicKeyForEncryption } from "../storage.ts";
+import { pgpEncrypt } from "../pgp/encrypt.ts";
 
-async function common(email: Email, withAttachments: boolean): Promise<Email> {
-    // we use the onRenderEmailBody function to get data
+export async function common(email: Email, withAttachments: boolean): Promise<Email> {
     const initialBody = { html: '', text: '', attachments: [] as unknown[] };
     const rawContentType = email.headers?.['content-type'] || email.headers?.['Content-Type'];
+    
     const ctx = {
-            id: email.id,
-            contentType: Array.isArray(rawContentType) ? rawContentType[0] : rawContentType,
-            bodyStructure: email.bodyStructure,
-            bodyValues: email.bodyValues,
-            attachments: email.attachments,
-            blobId: email.blobId,
-            from: email.from,
+        id: email.id,
+        contentType: Array.isArray(rawContentType) ? rawContentType[0] : rawContentType,
+        bodyStructure: email.bodyStructure,
+        bodyValues: email.bodyValues,
+        attachments: email.attachments,
+        blobId: email.blobId,
+        from: email.from,
     };
 
     const result = await onRenderEmailBody(initialBody, ctx);
-    if (result && typeof result === 'object') {
-        const htmlBody = result.html || '';
-        const textBody = result.text || '';
-        const attachments = result.attachments as MimeParsedAttachment[] || [];
-        if (htmlBody) {
-            email.htmlBody = [{
-                partId: 'pgp-rendered-html',
-                blobId: '',
-                size: htmlBody.length,
-                type: 'text/html',
-            }];
-            email.bodyValues = email.bodyValues || {};
-            email.bodyValues['pgp-rendered-html'] = { value: htmlBody };
-        }
-        if (textBody) {
-            email.textBody = [{
-                partId: 'pgp-rendered-text',
-                blobId: '',
-                size: textBody.length,
-                type: 'text/plain',
-            }];
-            email.bodyValues = email.bodyValues || {};
-            email.bodyValues['pgp-rendered-text'] = { value: textBody };
-        }
-        if (attachments.length > 0 && withAttachments) {
-            // we must upload ouselves the attachments to the host and get blobIds for them.
-        }
-        return email;
-    }else{
+    if (!result || typeof result !== 'object') {
         return email;
     }
+
+    // Shallow copy to prevent mutating the input object directly
+    const updatedEmail: Email = { ...email };
+
+    const htmlBody = result.html || '';
+    const textBody = result.text || '';
+    const attachments = (result.attachments as MimeParsedAttachment[]) || [];
+
+    const encoder = new TextEncoder();
+
+    if (htmlBody) {
+        updatedEmail.htmlBody = [{
+            partId: 'pgp-rendered-html',
+            blobId: '',
+            size: encoder.encode(htmlBody).byteLength,
+            type: 'text/html',
+        }];
+        updatedEmail.bodyValues = {
+            ...updatedEmail.bodyValues,
+            'pgp-rendered-html': { value: htmlBody },
+        };
+    }
+
+    if (textBody) {
+        updatedEmail.textBody = [{
+            partId: 'pgp-rendered-text',
+            blobId: '',
+            size: encoder.encode(textBody).byteLength,
+            type: 'text/plain',
+        }];
+        updatedEmail.bodyValues = {
+            ...updatedEmail.bodyValues,
+            'pgp-rendered-text': { value: textBody },
+        };
+    }
+
+    if (withAttachments && attachments.length > 0) {
+        const shouldEncrypt = Boolean(settings().encryptDrafts) || Boolean(await config('forceDraftAndAttachmentsEncryption'));
+        let encryptionKey: string | undefined = undefined;
+
+        if (shouldEncrypt) {
+            encryptionKey = await getDefaultPublicKeyForEncryption();
+            if (!encryptionKey) {
+                host.toast.error(host.i18n.t('error.no_default_public_key_attachment'));  
+                throw new Error('No default public key for encryption');
+            }
+        }
+
+        updatedEmail.attachments = await Promise.all(
+            attachments.map(async (att) => {
+                if (!att.dataUrl?.startsWith('data:')) {
+                    throw new Error('Invalid or missing data URL in attachment');
+                }
+
+                // Efficient Data URL to Uint8Array conversion
+                //const response = await fetch(att.dataUrl);
+                let binaryData =  dataUrlToUint8Array(att.dataUrl);//new Uint8Array(await response.arrayBuffer());
+
+                if (shouldEncrypt && encryptionKey) {
+                    const encryptedBlob: Blob = await pgpEncrypt(binaryData, [], encryptionKey);
+                    binaryData = new Uint8Array(await encryptedBlob.arrayBuffer());
+                }
+
+                const mimeType = shouldEncrypt ? 'application/octet-stream' : (att.type || 'application/octet-stream');
+                const name = shouldEncrypt ? `encrypted.pgp` : (att.name || 'unknown');
+                const uploadResult = await host.jmap.uploadBlob(binaryData, 'unknown', mimeType);
+
+                return {
+                    partId: `pgp-${uploadResult.blobId}`,
+                    blobId: uploadResult.blobId,
+                    size: att.size,
+                    name: name,
+                    type: mimeType,
+                };
+            })
+        );
+    }
+
+    return updatedEmail;
 }
 
 export async function onBeforeComposeOpenToReply(email:Email): Promise<Email> {
-    return common(email, false);
+    return await common(email, false);
 }
 
 export async function onBeforeComposeOpenToReplyAll(email:Email): Promise<Email> {
-    return common(email, false);
+    return await common(email, false);
+}
+
+export async function onBeforeComposeOpenToForward(email:Email): Promise<Email> {
+    return await common(email, true);
+}
+
+export async function onBeforeComposeOpenToForwardAttachments(email:Email): Promise<Email> {
+    //return await common(email, true);
+    return email
+}
+
+
+function dataUrlToUint8Array(dataUrl: string): Uint8Array {
+    const base64Index = dataUrl.indexOf(';base64,');
+    if (base64Index === -1) {
+        throw new Error('Invalid data URL');
+    }
+    const base64 = dataUrl.slice(base64Index + 8);
+    
+        if (typeof Uint8Array.fromBase64 === 'function') {
+            return Uint8Array.fromBase64(base64);
+        }
+
+    if (typeof atob === 'function') {
+        const binaryString = atob(base64);
+        const bytes = new Uint8Array(binaryString.length);
+        for (let i = 0; i < binaryString.length; i++) {
+            bytes[i] = binaryString.charCodeAt(i);
+        }
+        return bytes;
+    }
+    
+    // Si Buffer est disponible (environnement type Node / Deno)
+    if (typeof Buffer !== 'undefined') {
+        return new Uint8Array(Buffer.from(base64, 'base64'));
+    }
+
+    throw new Error('No base64 decoder available in plugin environment');
 }
 
 /* export function getQuoteBodies(
