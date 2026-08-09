@@ -88,7 +88,7 @@ export async function common(email: Email, withAttachments: boolean): Promise<Em
 
                 const mimeType =att.type;// shouldEncrypt ? 'application/octet-stream' : (att.type || 'application/octet-stream');
                 const name = att.name;//shouldEncrypt ? `encrypted.pgp` : (att.name || 'unknown');
-                const uploadResult = await host.jmap.uploadBlob(binaryData, 'unknown', mimeType);
+                const uploadResult = await host.jmap.uploadBlob(binaryData, 'unknown', 'application/octet-stream');
 
                 return {
                     partId: `pgp-${uploadResult.blobId}`,
