@@ -5,9 +5,9 @@ import { pgpVerify } from '../pgp/pgp-verify.ts';
 import { pgpDecrypt, normalizePgpMessage, PgpKeyLockedError } from '../pgp/decrypt.ts';
 import { detectPgp } from '../pgp/detect.ts'; 
 import { parseMime } from '../mime/parse.ts';
-import { extractKeyInfo, scanAndImportKeysFromAttachments } from '../pgp/key-utils.ts';
+import { decodePgpUri, extractKeyInfo, scanAndImportKeysFromAttachments } from '../pgp/key-utils.ts';
 
-import { addrList} from '../util.ts';
+import { addrList, ContactCryptoKey, ContactEmail} from '../util.ts';
 import { VERIFY_PREFIX, STATE_PREFIX} from '../shared.ts';
 import { listPublicCerts } from '../storage.ts';
 import {unlockedDecryptMaps} from '../util.ts';
@@ -93,21 +93,35 @@ export async function onRenderEmailBody(body: any, ctx: any): Promise<any | unde
 
 // ── HELPER FUNCTIONS ──
 
-/**
- * Loads and safe-reads public keys for a specific sender address.
- */
 async function loadPublicKeys(fromEmail: string): Promise<any[]> {
-  const publicCerts = await listPublicCerts(fromEmail);
-  const knownPublicKeys = [];
-  for (const cert of publicCerts) {
-    try {
-      const readK = await openpgp.readKey({ armoredKey: cert.publicKey });
-      knownPublicKeys.push(readK);
-    } catch {
-      /* ignore malformed public certificates safely */
-    }
+  const normalizedEmail = fromEmail.toLowerCase();
+  const searchResults = await host.contacts.search(normalizedEmail);
+    
+  const existingContact = searchResults.find(c => 
+    c.emails && Object.values(c.emails as Record<string, ContactEmail>).some(e => e.address.toLowerCase() === normalizedEmail)
+  );
+
+  if (!existingContact || !existingContact.cryptoKeys) {
+    return [];
   }
-  return knownPublicKeys;
+
+  const cryptoKeys = existingContact.cryptoKeys as Record<string, ContactCryptoKey>;
+  const cryptoKeysList = Object.values(cryptoKeys).filter(
+    (key) => key.mediaType === 'application/pgp-keys' || key.uri?.startsWith('data:application/pgp-keys')
+  );
+
+  const knownPublicKeys = await Promise.all(
+    cryptoKeysList.map(async (cryptoKeyEntry) => {
+      try {
+        const armoredKey =  decodePgpUri(cryptoKeyEntry.uri);
+        const readKey = await openpgp.readKey({ armoredKey });
+        return readKey;
+      } catch (e) {
+        return undefined;
+      }
+    })
+  );
+  return knownPublicKeys.filter((key): key is NonNullable<typeof key> => key !== undefined);
 }
 
 /**
