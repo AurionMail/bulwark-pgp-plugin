@@ -17,7 +17,7 @@ import { indexAndPersistDecryptedMail } from '../cache.ts';
 /**
  * Main entry point for rendering PGP-processed email bodies.
  */
-export async function onRenderEmailBody(body: any, ctx: any) {
+export async function onRenderEmailBody(body: any, ctx: any): Promise<any | undefined> {
   if (!ctx || !(await isCapable())) return undefined;
 
   await host.storage.set(VERIFY_PREFIX + ctx.id, { isEncrypted: null, processing: true });
