@@ -24,7 +24,6 @@ export async function common(email: Email, withAttachments: boolean): Promise<Em
         return email;
     }
 
-    // Shallow copy to prevent mutating the input object directly
     const updatedEmail: Email = { ...email };
 
     const htmlBody = result.html || '';
@@ -59,7 +58,10 @@ export async function common(email: Email, withAttachments: boolean): Promise<Em
         };
     }
 
+    let processedAttachments: any[] = [];
+
     if (withAttachments && attachments.length > 0) {
+        console.log('Attachments to process:', attachments);
         const shouldEncrypt = Boolean(settings().encryptDrafts) || Boolean(await config('forceDraftAndAttachmentsEncryption'));
         let encryptionKey: string | undefined = undefined;
 
@@ -71,15 +73,13 @@ export async function common(email: Email, withAttachments: boolean): Promise<Em
             }
         }
 
-        updatedEmail.attachments = await Promise.all(
+        processedAttachments = await Promise.all(
             attachments.map(async (att) => {
                 if (!att.dataUrl?.startsWith('data:')) {
                     throw new Error('Invalid or missing data URL in attachment');
                 }
 
-                // Efficient Data URL to Uint8Array conversion
-                //const response = await fetch(att.dataUrl);
-                let binaryData =  dataUrlToUint8Array(att.dataUrl);//new Uint8Array(await response.arrayBuffer());
+                let binaryData = dataUrlToUint8Array(att.dataUrl);
 
                 if (shouldEncrypt && encryptionKey) {
                     const encryptedBlob: Blob = await pgpEncrypt(binaryData, [], encryptionKey);
@@ -93,14 +93,31 @@ export async function common(email: Email, withAttachments: boolean): Promise<Em
                 return {
                     partId: `pgp-${uploadResult.blobId}`,
                     blobId: uploadResult.blobId,
-                    size: att.size,
+                    size: binaryData.byteLength, // Taille réelle du nouveau buffer téléversé
                     name: name,
                     type: mimeType,
+                    disposition: 'attachment',
                 };
             })
         );
     }
 
+    updatedEmail.attachments = processedAttachments;
+    updatedEmail.hasAttachment = processedAttachments.length > 0;
+
+    const subParts: any[] = [];
+    if (updatedEmail.htmlBody) subParts.push(...updatedEmail.htmlBody);
+    if (updatedEmail.textBody) subParts.push(...updatedEmail.textBody);
+    if (processedAttachments.length > 0) subParts.push(...processedAttachments);
+
+    updatedEmail.bodyStructure = {
+        partId: null,
+        blobId: null,
+        type: 'multipart/mixed',
+        subParts: subParts,
+    } as any;
+
+    console.log('Updated email after processing:', updatedEmail);
     return updatedEmail;
 }
 
