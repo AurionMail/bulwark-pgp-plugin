@@ -603,7 +603,11 @@ export function SettingsSection() {
     }
   }
   async function handleGenerateKey(overrideGen?: { name: string, email: string, pass: string }) {
-    const data = overrideGen || gen;
+
+    let data = gen as {name: string, email: string, pass: string}
+    if(overrideGen?.email){
+      data = overrideGen
+    }
     if (!data.email || !data.pass) {
       host.toast.error(host.i18n.t('settings.error.missing_fields'));
       return;
