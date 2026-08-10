@@ -609,19 +609,21 @@ export function SettingsSection() {
     if(overrideGen?.email){
       data = overrideGen
     }
-    if (!data.email || !data.pass) {
+    if (!data.email || !data.name) {
       host.toast.error(host.i18n.t('settings.error.missing_fields'));
       return;
     }
     
     setBusy(true);
     try {
-      if(!data.pass){
+      if(!data.pass || data.pass.trim() === ""){
+        const masterPass = await getMasterPass();
+        if(masterPass){
         //AURION there is no pass, so we get from ram the MasterPass
-        data.pass = await getMasterPass();
-        
+        data.pass = masterPass;
+        }
       }
-      if(!data.pass){
+      if(!data.pass || data.pass.trim() === ""){
         host.toast.error('error when gnerating key, no passphrase provided');
         return;
       }
@@ -736,7 +738,7 @@ export function SettingsSection() {
         onJsonImport: () => jsonFileRef.current && jsonFileRef.current.click(),
         onGenerate: (name, email) => {
           // Fire the modified generation logic
-          void handleGenerateKey({ name, email });
+          void handleGenerateKey({ name, email, pass: '' });
         }
       })
     );
