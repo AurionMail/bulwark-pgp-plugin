@@ -5,7 +5,7 @@ import * as openpgp from 'openpgp';
 import { buildMimeMessage, wrapAsPgpMimeEncrypted, wrapAsPgpMimeSigned } from '../mime/builder.ts';
 import { pgpSignDetached } from '../pgp/pgp-sign.ts';
 import { pgpEncrypt } from '../pgp/encrypt.ts';
-import { clearArmoredPrivateKeyToPrivateKey } from '../util.ts';
+import { clearArmoredPrivateKeyToPrivateKey, unlockedDecryptMaps } from '../util.ts';
 import { getDefaultKeyRecord, KeyRecord, listKeyRecords } from '../storage.ts';
 
 import {emailsOf, bytesArrayBuffer} from '../util.ts';
@@ -13,6 +13,7 @@ import { config, INTENT_KEY, settings} from '../shared.ts';
 import { isCapable } from '../index.tsx';
 import { checkIsKeyUnlocked, fetchKeyFromBackground } from '../pgp/session-broadcast.ts';
 import { recipientKeysFor } from '../pgp/key-utils.ts';
+import { pgpDecrypt } from '../pgp/decrypt.ts';
 
 
 export interface ComposeAttachment {
@@ -172,6 +173,27 @@ export async function onComposeSend(req: ComposeRequest): Promise<boolean | unde
 
     // 2. Build base clear MIME message
     const attachments = await fetchAttachments(req);
+    if (settings().encryptDrafts == true || await config('forceDraftAndAttachmentsEncryption') == true) {
+      const { keyRecords, unlockedKeys } = await unlockedDecryptMaps();
+      const decryptedAttachments = await Promise.all(
+        attachments.map(async (attachment) => {
+          const { mimeBytes } = await pgpDecrypt({
+            cmsBytes: attachment.content,
+            keyRecords,
+            unlockedKeys,
+          });
+
+          return {
+            ...attachment,
+            content: mimeBytes
+          };
+        })
+      );
+
+      // Mettre à jour attachments avec la version déchiffrée
+      attachments.splice(0, attachments.length, ...decryptedAttachments);
+    }
+
     if (settings().alwaysSendPubKey && currentKeyRecord?.publicKey) {
       attachments.push({
         filename: `${from.addr}_publickey.asc`,
