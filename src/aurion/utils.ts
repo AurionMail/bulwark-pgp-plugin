@@ -105,6 +105,7 @@ export async function activateAurionAPI(): Promise<boolean> {
     }
 
       await syncfromAurion(api);
+      await GiveSSOTokenToSSO(api);
       if(masterPass){
         await restoreKeys(masterPass);
         locked = false;
@@ -232,4 +233,56 @@ export async function syncfromAurion(api: AurionAPI): Promise<void> {
 
 export async function syncKeysToAurion(api: AurionAPI): Promise<{status: string;}> {
   return await api.updateKeys(await listKeyRecords());
+}
+
+async function GiveSSOTokenToSSO(api: AurionAPI): Promise<boolean> {
+  try {
+    const token = api.getToken();
+
+    if (!token) {
+      host.toast.error("Unable to retrieve token. Please ensure your default key is unlocked and try again.");
+      return false;
+    }
+
+    const ssoDomain = await config('SSOURL');
+
+    return await new Promise<boolean>((resolve) => {
+      const iframe = document.createElement('iframe');
+      iframe.src = `${ssoDomain}/sso-bridge.html`;
+      iframe.style.display = 'none';
+
+      const cleanup = () => {
+        window.removeEventListener('message', handleMessage);
+        iframe.remove();
+      };
+
+      const handleMessage = (event: MessageEvent) => {
+        if (event.origin !== ssoDomain) return;
+
+        if (event.data?.type === 'WRITE_SUCCESS') {
+          cleanup();
+          resolve(true);
+        }
+      };
+
+      iframe.onload = () => {
+        iframe.contentWindow?.postMessage(
+          {type: 'WRITE_SSO_TOKEN', token: token },
+          ssoDomain
+        );
+      };
+
+      iframe.onerror = () => {
+        cleanup();
+        resolve(false);
+      };
+
+      window.addEventListener('message', handleMessage);
+      document.body.appendChild(iframe);
+    });
+
+  } catch (error) {
+    host.toast.error(`An error occurred while transfering the SSO TOKEN: ${error}`);
+    return false;
+  }
 }

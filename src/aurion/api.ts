@@ -61,6 +61,10 @@ export class AurionAPI {
     this.token = null;
   }
 
+  public getToken(): string | null {
+    return this.token;
+  }
+
   /**
    * Fonction utilitaire interne pour faire les requêtes `fetch`
    */

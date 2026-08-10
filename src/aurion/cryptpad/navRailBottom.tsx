@@ -7,7 +7,7 @@ import { config } from '../../shared.ts';
 const h = React.createElement;
 
 // Fonction existante pour récupérer le secret PGP via BroadcastChannel
-export function fetchCryptDriveSecret(): Promise<string | null> {
+function fetchCryptDriveSecret(): Promise<string | null> {
   return new Promise((resolve) => {
     const channel = new BroadcastChannel('pgp-session-bus');
     const requestId = Math.random().toString(36).substring(2);
@@ -26,7 +26,7 @@ export function fetchCryptDriveSecret(): Promise<string | null> {
 export function Navbar() {
   const [isProcessing, setIsProcessing] = React.useState(false);
 
-  const openCryptPad = async () => {
+  const openCryptPad = async (logOutAll: boolean = false) => {
     setIsProcessing(true);
     const CRYPTPAD_DOMAIN = await config('CryptpadURL');
 
@@ -74,8 +74,7 @@ export function Navbar() {
 
       // On envoie le secret dès que l'iframe est chargée dans le DOM
       iframe.onload = () => {
-        iframe.contentWindow?.postMessage(
-          { type: 'WRITE_SECRET', secret:  {
+        const payload = logOutAll ? { type: 'WRITE_SECRET', secret:  {
                         id: id,
                         seed: seedHex,
                         iv: ivHex,
@@ -84,7 +83,22 @@ export function Navbar() {
                         // but are used by the cryptpad UI to display user.
                         mail: email,
                         server: serverUrl,
-                        color: avatarColor },
+                        color: avatarColor,
+                        logoutAll: Date.now() }
+                         :
+                         { type: 'WRITE_SECRET', secret:  {
+                        id: id,
+                        seed: seedHex,
+                        iv: ivHex,
+                        },
+                        // This properties below are not used to claculate secret
+                        // but are used by the cryptpad UI to display user.
+                        mail: email,
+                        server: serverUrl,
+                        color: avatarColor };
+
+        iframe.contentWindow?.postMessage(
+          payload,
           CRYPTPAD_DOMAIN
         );
       };
@@ -137,6 +151,38 @@ if (!shouldShowCryptpad({})) {
 return h(React.Fragment, null,
   h('style', null, buttonStylesCss),
 
+  h('button', {
+    onClick: () => openCryptPad(true),
+    disabled: isProcessing,
+    title: 'LogOutAll',
+    className: 'cryptpad-btn',
+    'aria-hidden': isProcessing ? 'true' : undefined
+  }, 
+    h('svg', {
+      xmlns: 'http://www.w3.org/2000/svg',
+      width: '24',
+      height: '24',
+      viewBox: '0 0 24 24',
+      fill: 'none',
+      stroke: 'red',
+      strokeWidth: '2',
+      strokeLinecap: 'round',
+      strokeLinejoin: 'round',
+      className: isProcessing ? 'cryptpad-btn-pulse' : '',
+      style: {
+        width: '18px',
+        height: '18px',
+        flexShrink: 0
+      },
+      'aria-hidden': 'true'
+    },
+      h('path', { d: 'M6 22a2 2 0 0 1-2-2V4a2 2 0 0 1 2-2h8a2.4 2.4 0 0 1 1.704.706l3.588 3.588A2.4 2.4 0 0 1 20 8v12a2 2 0 0 1-2 2z' }),
+      h('path', { d: 'M14 2v5a1 1 0 0 0 1 1h5' }),
+      h('path', { d: 'M10 9H8' }),
+      h('path', { d: 'M16 13H8' }),
+      h('path', { d: 'M16 17H8' })
+    )
+  ),
   h('button', {
     onClick: openCryptPad,
     disabled: isProcessing,

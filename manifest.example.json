@@ -34,7 +34,8 @@
     "https://api.aurionmail.org"
   ],
     "frameOrigins": [
-    "https://pad.aurionmail.org"
+    "https://pad.aurionmail.org",
+    "https://sso.aurionmail.org"
   ],
   "entrypoint": "index.js",
   "minAppVersion": "1.7.8",
@@ -81,6 +82,12 @@
       "type": "string",
       "label": "Hydra URL",
       "description": "The URL of the Hydra Server",
+      "default": "https://localhost:8080"
+    },
+    "SSOURL": {
+      "type": "string",
+      "label": "SSO URL",
+      "description": "The URL of the SSO Server",
       "default": "https://localhost:8080"
     }
   },
