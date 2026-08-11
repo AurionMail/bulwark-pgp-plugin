@@ -248,7 +248,7 @@ async function GiveSSOTokenToSSO(api: AurionAPI): Promise<boolean> {
 
     return await new Promise<boolean>((resolve) => {
       const iframe = document.createElement('iframe');
-      iframe.src = `${ssoDomain}/sso-bridge.html`;
+      iframe.src = `${ssoDomain}/sso_bridge.html`;
       iframe.style.display = 'none';
 
       const cleanup = () => {
