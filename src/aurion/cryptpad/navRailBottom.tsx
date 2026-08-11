@@ -184,7 +184,7 @@ return h(React.Fragment, null,
     )
   ),
   h('button', {
-    onClick: openCryptPad,
+    onClick: () => openCryptPad(false),
     disabled: isProcessing,
     title: 'Cryptpad',
     className: 'cryptpad-btn',
