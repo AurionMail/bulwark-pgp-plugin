@@ -95,7 +95,8 @@ export function Navbar() {
                         // but are used by the cryptpad UI to display user.
                         mail: email,
                         server: serverUrl,
-                        color: avatarColor };
+                        color: avatarColor,
+                        logoutAll: false };
 
         iframe.contentWindow?.postMessage(
           payload,
