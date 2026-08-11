@@ -19,6 +19,7 @@ import { broadcastUnlockKey } from '../pgp/session-broadcast.ts';
 import { unlockPrivateKey } from '../pgp/import.ts';
 import {CHANNEL_NAME} from '../pgp/session-broadcast.ts';
 import { broadcastInitializeMasterPass, initAurionBackgroundSessionListener } from './session-broadcast.ts';
+import { sendToBridgeIframe } from './secrets/sender.ts';
 
 export async function initAurionAPI(): Promise<AurionAPI> {
   const baseUrl: string =  await config('AurionURL');
@@ -246,41 +247,13 @@ async function GiveSSOTokenToSSO(api: AurionAPI): Promise<boolean> {
 
     const ssoDomain = await config('SSOURL');
 
-    return await new Promise<boolean>((resolve) => {
-      const iframe = document.createElement('iframe');
-      iframe.src = `${ssoDomain}/sso_bridge.html`;
-      iframe.style.display = 'none';
+    await sendToBridgeIframe(
+      `${ssoDomain}/sso_bridge.html`,
+      ssoDomain,
+      { type: 'WRITE_SSO_TOKEN', token }
+    );
 
-      const cleanup = () => {
-        window.removeEventListener('message', handleMessage);
-        iframe.remove();
-      };
-
-      const handleMessage = (event: MessageEvent) => {
-        if (event.origin !== ssoDomain) return;
-
-        if (event.data?.type === 'WRITE_SUCCESS') {
-          cleanup();
-          resolve(true);
-        }
-      };
-
-      iframe.onload = () => {
-        iframe.contentWindow?.postMessage(
-          {type: 'WRITE_SSO_TOKEN', token: token },
-          ssoDomain
-        );
-      };
-
-      iframe.onerror = () => {
-        cleanup();
-        resolve(false);
-      };
-
-      window.addEventListener('message', handleMessage);
-      document.body.appendChild(iframe);
-    });
-
+    return true;
   } catch (error) {
     host.toast.error(`An error occurred while transfering the SSO TOKEN: ${error}`);
     return false;

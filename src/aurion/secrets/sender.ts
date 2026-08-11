@@ -22,3 +22,43 @@ export async function processSecret(secretValue: string) {
 
   return { ciphertextHex, ivHex, seedHex };
 }
+
+export async function sendToBridgeIframe(url: string, origin: string, payload: unknown): Promise<void> {
+  return new Promise((resolve, reject) => {
+    const iframe = document.createElement('iframe');
+    iframe.src = url;
+    iframe.style.display = 'none';
+
+    const cleanup = () => {
+      window.removeEventListener('message', handleConfirmation);
+      if (iframe.parentNode) {
+        document.body.removeChild(iframe);
+      }
+    };
+
+    const handleConfirmation = (event: MessageEvent) => {
+      if (event.origin !== origin) return;
+      if (event.data?.type === 'WRITE_SUCCESS') {
+        cleanup();
+        resolve();
+      }
+      if (event.data?.type === 'WRITE_ERROR') {
+        cleanup();
+        reject();
+      }
+    };
+
+    window.addEventListener('message', handleConfirmation);
+
+    iframe.onload = () => {
+      iframe.contentWindow?.postMessage(payload, origin);
+    };
+
+    iframe.onerror = (err) => {
+      cleanup();
+      reject(err);
+    };
+
+    document.body.appendChild(iframe);
+  });
+}

@@ -223,17 +223,6 @@ export class AurionAPI {
       method: 'GET',
     });
   }
-
-  // ==========================================
-  // 4. HEALTH & MONITORING
-  // ==========================================
-
-  public async checkHealth(): Promise<any> {
-    // Pas de parsing strict défini par la spec, on retourne l'objet JSON brut
-    return this.request<any>('/health', {
-      method: 'GET',
-    });
-  }
 }
 
 // Instance par défaut (Singleton) à utiliser dans tout le plugin si nécessaire
