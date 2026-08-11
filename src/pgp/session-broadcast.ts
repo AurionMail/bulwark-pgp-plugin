@@ -18,6 +18,8 @@ type SessionMessage =
   | { type: 'REQUEST_KEY_DATA'; requestId: string; keyId: string }
   | { type: 'RESPONSE_KEY_DATA'; requestId: string; keyEntry: SessionKeysEntry | null }
   | { type: 'INITIALIZE_RAM_INDEX'; decryptedIndex: Record<string, DecryptedCachePayload> }
+  | { type: 'GET_RAM_INDEX'; requestId: string }
+  | { type: 'RESPONSE_RAM_INDEX'; requestId: string; decryptedIndex: Record<string, DecryptedCachePayload> }
   | { type: 'REQUEST_PREVIEWS_BATCH'; requestId: string; emailIds: string[] }
   | { type: 'RESPONSE_PREVIEWS_BATCH'; requestId: string; previews: Record<string, string> }
   | { type: 'REQUEST_SEARCH'; requestId: string; query: string }
@@ -191,6 +193,28 @@ export function broadcastInitializeRamIndex(decryptedIndex: Record<string, Decry
   const channel = new BroadcastChannel(CHANNEL_NAME);
   channel.postMessage({ type: 'INITIALIZE_RAM_INDEX', decryptedIndex });
   channel.close();
+}
+
+export function fetchRamIndexFromBackground(): Promise<Record<string, DecryptedCachePayload>> {
+  return new Promise((resolve) => {
+    const channel = new BroadcastChannel(CHANNEL_NAME);
+    const requestId = Math.random().toString(36).substring(2);
+
+    const timeout = setTimeout(() => {
+      channel.close();
+      resolve({});
+    }, 1000);
+
+    channel.onmessage = (event: MessageEvent<SessionMessage>) => {
+      if (event.data.type === 'RESPONSE_RAM_INDEX' && event.data.requestId === requestId) {
+        clearTimeout(timeout);
+        channel.close();
+        resolve(event.data.decryptedIndex);
+      }
+    };
+
+    channel.postMessage({ type: 'GET_RAM_INDEX', requestId });
+  });
 }
 
 export function fetchPreviewsBatchFromBackground(emailIds: string[]): Promise<Record<string, string>> {
