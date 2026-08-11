@@ -105,6 +105,11 @@ export class AurionAPI {
       if (parsedData && parsedData.error) {
         errorMessage = parsedData.error;
       }
+      if(res.status === 401) {
+        this.clearToken();
+        host.storage.set('logoutAsked', Date.now());
+        host.user.logout();
+      }
       throw new Error(errorMessage);
     }
 
