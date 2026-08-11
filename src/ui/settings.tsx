@@ -7,7 +7,8 @@ import {
   saveKeyRecord, listKeyRecords, deleteKeyRecord, listPublicCerts, deletePublicCert,
   KeyRecord, PublicCert, exportPluginData, importPluginData,
   getKeyRecord,
-  loadDangerousPassphrases
+  loadDangerousPassphrases,
+  clearAllMessageCache
 } from '../storage.ts';
 
 import { importOpenPgpPrivateKey, importOpenPgpPublicKey, unlockPrivateKey } from '../pgp/import.ts';
@@ -265,7 +266,6 @@ export function SettingsSection() {
   }
 
   async function initiateRecoveryUnlock(recID: string) {
-    // 1. Récupération de la clé de secours ET de la clé originale
     const recoveryRec = await getKeyRecord(recID + '_recovery');
     const originalRec = await getKeyRecord(recID);
 
@@ -331,7 +331,7 @@ export function SettingsSection() {
 
       // 5. Re-encrypt internal PGP key packets with the NEW passphrase
       const parsedKey = await openpgp.readKey({ armoredKey: unlockedPrivateKey });
-      // unlockedPrivateKey est déjà déchiffrée au niveau PGP, on ré-encrypte directement avec le nouveau pass
+      // unlockedPrivateKey is already decrypted at the PGP level, so we can re-encrypt it with the new passphrase
       const reencryptedPgpKey = await openpgp.encryptKey({
         privateKey: parsedKey as openpgp.PrivateKey,
         passphrase: newPass
@@ -349,7 +349,9 @@ export function SettingsSection() {
       }
 
       await saveKeyRecord(updatedRecord);
-
+      // we can't unlock the message cache because it was encrypto with a derived key from the master key, which is lost. 
+      // So, we need to remove to avoid decryption errors
+      clearAllMessageCache();
       // 7. Re-unlock for active session using updated record & new pass
       const unlockedSession = await unlockPrivateKey(updatedRecord, newPass);
 
@@ -602,7 +604,7 @@ export function SettingsSection() {
       setBusy(false);
     }
   }
-  async function handleGenerateKey(overrideGen?: { name: string, email: string, pass: string }) {
+  async function handleGenerateKey(overrideGen?: { name: string, email: string, pass: string }, withRecovery: boolean = true) {
 
     let data = gen as {name: string, email: string, pass: string}
     if(overrideGen?.email){
@@ -623,7 +625,7 @@ export function SettingsSection() {
         passphrase: data.pass,
         format: 'armored'
       });
-      //if there is not default key, set this one as default and generate an AES salt for it
+      //if there is not default key, set this one as default
       // Check for an existing default key
       const hasDefaultKey = keys.some(k => k.default);
       const keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
@@ -632,7 +634,7 @@ export function SettingsSection() {
       await saveKeyRecord({
         ...keyRecord,
         default: !hasDefaultKey,
-        recoverable: true,
+        recoverable: withRecovery,
       });
 
     const unlockedSession = await unlockPrivateKey(keyRecord, data.pass);
@@ -646,6 +648,7 @@ export function SettingsSection() {
     });
 
 
+    if(withRecovery){
       // 2. Déchiffrement complet de la clé PGP en mémoire (pour obtenir la clé PGP en clair)
     const parsedKey = await openpgp.readKey({ armoredKey: String(privateKey) });
     if (!parsedKey.isPrivate()) {
@@ -693,6 +696,7 @@ export function SettingsSection() {
         content: backupContent, 
         contentType: 'text/plain'
       });
+    }
       
       host.toast.success(host.i18n.t('settings.success.key_generated'));
       setGen({ open: false, name: "", email: "", pass: "" });
