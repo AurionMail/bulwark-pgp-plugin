@@ -3,7 +3,7 @@ import React, { RefObject } from 'react';
 import host from '@plugin-host';
 import { KeyRecord } from '../../../storage.ts';
 import { btn, fmtDate, isExpired, card } from '../../shared.ts';
-
+ import { useState } from 'react';
 interface PrivateKeysSectionProps {
   keys: KeyRecord[];
   unlocked: Record<string, boolean>;
@@ -47,6 +47,7 @@ export function PrivateKeysSection({
 }: PrivateKeysSectionProps) {
   const visibleKeys = keys.filter((rec) => !rec.recovery);
   const hasWebAuthnLockedKeys = keys.some((k) => k.webauthn && !unlocked[k.id]);
+  const [openMenuId, setOpenMenuId] = useState<null | string>(null);
 
   return (
     <div>
@@ -135,49 +136,22 @@ export function PrivateKeysSection({
                   </div>
                 </div>
 
-                {/* Actions sur la clé */}
                 <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
-                  {/* Chiffrement côté serveur */}
-                  {!rec.serverSide && (
-                    <button
-                      type="button"
-                      style={{ ...btn, color: 'var(--color-foreground)' }}
-                      className="lock-btn"
-                      title={host.i18n.t('settings.action.upload_server')}
-                      disabled={busy}
-                      onClick={() => onSetServerSideEncryption(rec)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
-                        <path d="M300-720q-25 0-42.5 17.5T240-660q0 25 17.5 42.5T300-600q25 0 42.5-17.5T360-660q0-25-17.5-42.5T300-720Zm0 400q-25 0-42.5 17.5T240-260q0 25 17.5 42.5T300-200q25 0 42.5-17.5T360-260q0-25-17.5-42.5T300-320ZM160-840h640q17 0 28.5 11.5T840-800v280q0 17-11.5 28.5T800-480H160q-17 0-28.5-11.5T120-520v-280q0-17 11.5-28.5T160-840Zm40 80v200h560v-200H200Zm-40 320h640q17 0 28.5 11.5T840-400v280q0 17-11.5 28.5T800-80H160q-17 0-28.5-11.5T120-120v-280q0-17 11.5-28.5T160-440Zm40 80v200h560v-200H200Zm0-400v200-200Zm0 400v200-200Z" />
-                      </svg>
-                    </button>
-                  )}
-
-                  {/* Verrouillage / Déverrouillage */}
+                  
                   {unlocked[rec.id] ? (
                     <>
-                    <button
-                      type="button"
-                      style={{ ...btn, color: 'var(--color-foreground)' }}
-                      className="lock-btn"
-                      title={host.i18n.t('settings.action.lock')}
-                      disabled={busy}
-                      onClick={() => onLock(rec)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
-                        <path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z" />
-                      </svg>
-                    </button>
-                    <button
-                      type="button"
-                      style={{ ...btn, color: 'var(--color-foreground)' }}
-                      className="lock-btn"
-                      title={host.i18n.t('settings.action.unlock')}
-                      disabled={busy}
-                      onClick={() => onChangePass(rec)}
-                    >
-                      <svg xmlns="http://www.w3.org/2000/svg" height="1rem" viewBox="0 -960 960 960" width="1rem" fill="currentColor"><path d="M160-160v-80h109q-51-44-80-106t-29-134q0-112 68-197.5T400-790v84q-70 25-115 86.5T240-480q0 54 21.5 99.5T320-302v-98h80v240H160Zm560-320q0-51-20.5-95.5T640-658v98h-80v-240h240v80H691q59 53 83.5 113.5T800-480h-80ZM640-80q-17 0-28.5-11.5T600-120v-120q0-17 11.5-28.5T640-280v-40q0-33 23.5-56.5T720-400q33 0 56.5 23.5T800-320v40q17 0 28.5 11.5T840-240v120q0 17-11.5 28.5T800-80H640Zm40-200h80v-40q0-17-11.5-28.5T720-360q-17 0-28.5 11.5T680-320v40Z"/></svg>
-                    </button>
+                      <button
+                        type="button"
+                        style={{ ...btn, color: 'var(--color-foreground)' }}
+                        className="lock-btn"
+                        title={host.i18n.t('settings.action.lock')}
+                        disabled={busy}
+                        onClick={() => onLock(rec)}
+                      >
+                        <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
+                          <path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z" />
+                        </svg>
+                      </button>
                     </>
                   ) : (
                     <button
@@ -192,70 +166,127 @@ export function PrivateKeysSection({
                         <path d="M240-160h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM240-160v-400 400Zm0 80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h280v-80q0-83 58.5-141.5T720-920q83 0 141.5 58.5T920-720h-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80h120q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Z" />
                       </svg>
                     </button>
-
                   )}
 
-                  {/* Déverrouillage de secours (Emergency Recovery) */}
-                  {!unlocked[rec.id] && rec.recoverable && (
+                  <div className="menu-dropdown-container">
                     <button
                       type="button"
                       style={{ ...btn, color: 'var(--color-foreground)' }}
                       className="lock-btn"
-                      title={host.i18n.t('settings.action.unlock')}
                       disabled={busy}
-                      onClick={() => onRecoveryUnlock(rec.id)}
+                      aria-haspopup="true"
+                      aria-expanded={openMenuId === rec.id}
+                      onClick={() => setOpenMenuId(openMenuId === rec.id ? null : rec.id)}
                     >
-                      <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 -960 960 960" fill="currentColor" aria-hidden="true">
-                        <path d="M420-440v60q0 17 11.5 28.5T460-340h40q17 0 28.5-11.5T540-380v-60h60q17 0 28.5-11.5T640-480v-40q0-17-11.5-28.5T600-560h-60v-60q0-17-11.5-28.5T500-660h-40q-17 0-28.5 11.5T420-620v60h-60q-17 0-28.5 11.5T320-520v40q0 17 11.5 28.5T360-440h60Zm47 355q-6-1-12-3-135-45-215-166.5T160-516v-189q0-25 14.5-45t37.5-29l240-90q14-5 28-5t28 5l240 90q23 9 37.5 29t14.5 45v189q0 140-80 261.5T505-88q-6 2-12 3t-13 1q-7 0-13-1Zm13-79q104-33 172-132t68-220v-189l-240-90-240 90v189q0 121 68 220t172 132Zm0-316Z" />
+                      {/* Icône Trois Points Vertical (More Vertical) */}
+                      <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                        <circle cx="12" cy="12" r="1" />
+                        <circle cx="12" cy="5" r="1" />
+                        <circle cx="12" cy="19" r="1" />
                       </svg>
                     </button>
-                  )}
 
-                  {/* Bouton WebAuthn */}
-                  <button
-                    type="button"
-                    className="lock-btn"
-                    style={{
-                      ...btn,
-                      color: rec.webauthn ? 'var(--color-success, #16a34a)' : 'var(--color-foreground)',
-                    }}
-                    title={rec.webauthn ? host.i18n.t('settings.title.webauthn_ok') : host.i18n.t('settings.action.link_webauthn')}
-                    disabled={busy}
-                    onClick={() => onLinkWebAuthn(rec)}
-                  >
-                    <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 -960 960 960" fill="currentColor">
-                      <path d="M223.5-423.5Q200-447 200-480t23.5-56.5Q247-560 280-560t56.5 23.5Q360-513 360-480t-23.5 56.5Q313-400 280-400t-56.5-23.5ZM280-240q-100 0-170-70T40-480q0-100 70-170t170-70q67 0 121.5 33t86.5 87h335q8 0 15.5 3t13.5 9l80 80q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L805-325q-5 5-12 8t-14 4q-7 1-14-1t-13-7l-52-39-57 43q-5 4-11 6t-12 2q-6 0-12.5-2t-11.5-6l-61-43h-47q-32 54-86.5 87T280-240Zm0-80q56 0 98.5-34t56.5-86h125l58 41v.5-.5l82-61 71 55 75-75h-.5.5l-40-40v-.5.5H435q-14-52-56.5-86T280-640q-66 0-113 47t-47 113q0 66 47 113t113 47Z" />
-                    </svg>
-                  </button>
+                    {openMenuId === rec.id && (
+                      <div className="menu-popover" role="menu" aria-orientation="vertical">
+                        <div className="menu-header">
+                          <span>{host.i18n.t('settings.action.options') || 'Options'}</span>
+                        </div>
 
-                  {/* Suppression */}
-                  <button
-                    type="button"
-                    style={{ ...btn, color: 'var(--color-destructive, #dc2626)', borderColor: 'var(--color-destructive, #dc2626)' }}
-                    className="trash-btn"
-                    title={host.i18n.t('settings.action.delete')}
-                    disabled={busy}
-                    onClick={() => onRemoveKey(rec)}
-                  >
-                    <svg
-                      xmlns="http://www.w3.org/2000/svg"
-                      width="1rem"
-                      height="1rem"
-                      viewBox="0 0 24 24"
-                      fill="none"
-                      stroke="currentColor"
-                      strokeWidth="2"
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      aria-hidden="true"
-                    >
-                      <path d="M10 11v6" />
-                      <path d="M14 11v6" />
-                      <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
-                      <path d="M3 6h18" />
-                      <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
-                    </svg>
-                  </button>
+                        {!rec.serverSide && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="menu-item"
+                            disabled={busy}
+                            onClick={() => {
+                              onSetServerSideEncryption(rec);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor">
+                              <path d="M300-720q-25 0-42.5 17.5T240-660q0 25 17.5 42.5T300-600q25 0 42.5-17.5T360-660q0-25-17.5-42.5T300-720Zm0 400q-25 0-42.5 17.5T240-260q0 25 17.5 42.5T300-200q25 0 42.5-17.5T360-260q0-25-17.5-42.5T300-320ZM160-840h640q17 0 28.5 11.5T840-800v280q0 17-11.5 28.5T800-480H160q-17 0-28.5-11.5T120-520v-280q0-17 11.5-28.5T160-840Zm40 80v200h560v-200H200Zm-40 320h640q17 0 28.5 11.5T840-400v280q0 17-11.5 28.5T800-80H160q-17 0-28.5-11.5T120-120v-280q0-17 11.5-28.5T160-440Zm40 80v200h560v-200H200Zm0-400v200-200Zm0 400v200-200Z" />
+                            </svg>
+                            <span>{host.i18n.t('settings.action.upload_server')}</span>
+                          </button>
+                        )}
+
+                        {/* Secours / Recovery */}
+                        {!unlocked[rec.id] && rec.recoverable && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="menu-item"
+                            disabled={busy}
+                            onClick={() => {
+                              onRecoveryUnlock(rec.id);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor">
+                              <path d="M420-440v60q0 17 11.5 28.5T460-340h40q17 0 28.5-11.5T540-380v-60h60q17 0 28.5-11.5T640-480v-40q0-17-11.5-28.5T600-560h-60v-60q0-17-11.5-28.5T500-660h-40q-17 0-28.5 11.5T420-620v60h-60q-17 0-28.5 11.5T320-520v40q0 17 11.5 28.5T360-440h60Zm47 355q-6-1-12-3-135-45-215-166.5T160-516v-189q0-25 14.5-45t37.5-29l240-90q14-5 28-5t28 5l240 90q23 9 37.5 29t14.5 45v189q0 140-80 261.5T505-88q-6 2-12 3t-13 1q-7 0-13-1Zm13-79q104-33 172-132t68-220v-189l-240-90-240 90v189q0 121 68 220t172 132Zm0-316Z" />
+                            </svg>
+                            <span>{host.i18n.t('settings.action.unlock')} (Recovery)</span>
+                          </button>
+                        )}
+                        {unlocked[rec.id] && (
+                          <button
+                            type="button"
+                            role="menuitem"
+                            className="menu-item"
+                            disabled={busy}
+                            onClick={() => {
+                              onChangePass(rec);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" height="1rem" viewBox="0 -960 960 960" width="1rem" fill="currentColor"><path d="M160-160v-80h109q-51-44-80-106t-29-134q0-112 68-197.5T400-790v84q-70 25-115 86.5T240-480q0 54 21.5 99.5T320-302v-98h80v240H160Zm560-320q0-51-20.5-95.5T640-658v98h-80v-240h240v80H691q59 53 83.5 113.5T800-480h-80ZM640-80q-17 0-28.5-11.5T600-120v-120q0-17 11.5-28.5T640-280v-40q0-33 23.5-56.5T720-400q33 0 56.5 23.5T800-320v40q17 0 28.5 11.5T840-240v120q0 17-11.5 28.5T800-80H640Zm40-200h80v-40q0-17-11.5-28.5T720-360q-17 0-28.5 11.5T680-320v40Z"/></svg>
+                      
+                            <span>{host.i18n.t('settings.action.change_pass')}</span>
+                          </button>
+                        )}
+
+                        {/* WebAuthn */}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="menu-item"
+                          disabled={busy}
+                          onClick={() => {
+                            onLinkWebAuthn(rec);
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          <svg className="menu-icon" style={{ color: rec.webauthn ? 'var(--color-success, #16a34a)' : 'inherit' }} xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor">
+                            <path d="M223.5-423.5Q200-447 200-480t23.5-56.5Q247-560 280-560t56.5 23.5Q360-513 360-480t-23.5 56.5Q313-400 280-400t-56.5-23.5ZM280-240q-100 0-170-70T40-480q0-100 70-170t170-70q67 0 121.5 33t86.5 87h335q8 0 15.5 3t13.5 9l80 80q6 6 8.5 13t2.5 15q0 8-2.5 15t-8.5 13L805-325q-5 5-12 8t-14 4q-7 1-14-1t-13-7l-52-39-57 43q-5 4-11 6t-12 2q-6 0-12.5-2t-11.5-6l-61-43h-47q-32 54-86.5 87T280-240Zm0-80q56 0 98.5-34t56.5-86h125l58 41v.5-.5l82-61 71 55 75-75h-.5.5l-40-40v-.5.5H435q-14-52-56.5-86T280-640q-66 0-113 47t-47 113q0 66 47 113t113 47Z" />
+                          </svg>
+                          <span>{rec.webauthn ? host.i18n.t('settings.title.webauthn_ok') : host.i18n.t('settings.action.link_webauthn')}</span>
+                        </button>
+
+                        <div className="menu-separator" role="separator"></div>
+
+                        {/* Delete / Suppression */}
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="menu-item menu-item-destructive"
+                          disabled={busy}
+                          onClick={() => {
+                            onRemoveKey(rec);
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
+                            <path d="M10 11v6" />
+                            <path d="M14 11v6" />
+                            <path d="M19 6v14a2 2 0 0 1-2 2H7a2 2 0 0 1-2-2V6" />
+                            <path d="M3 6h18" />
+                            <path d="M8 6V4a2 2 0 0 1 2-2h4a2 2 0 0 1 2 2v2" />
+                          </svg>
+                          <span>{host.i18n.t('settings.action.delete')}</span>
+                        </button>
+                      </div>
+                    )}
+                  </div>
                 </div>
               </div>
             </div>

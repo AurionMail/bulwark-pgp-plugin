@@ -108,6 +108,106 @@ const {
           opacity: 0.5 !important;
           cursor: not-allowed;
         }
+        .menu-dropdown-container {
+          position: relative;
+          display: inline-block;
+        }
+
+        /* Bouton déclencheur "dots" */
+        .menu-dots-btn {
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          padding: 6px;
+          background: transparent;
+          border: 1px solid transparent;
+          border-radius: 4px;
+          cursor: pointer;
+          color: var(--color-foreground, #000);
+          transition: background-color 150ms ease;
+        }
+
+        .menu-dots-btn:hover {
+          background-color: var(--color-muted, #f1f5f9);
+        }
+
+        .menu-dots-btn:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        /* Popover du Menu */
+        .menu-popover {
+          position: absolute;
+          right: 0;
+          top: 100%;
+          margin-top: 4px;
+          z-index: 50;
+          min-width: 200px;
+          background-color: var(--color-background, #ffffff);
+          border-radius: 6px;
+          border: 1px solid var(--color-border, #e2e8f0);
+          box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.1), 0 4px 6px -2px rgba(0, 0, 0, 0.05);
+          padding: 4px 0;
+        }
+
+        /* En-tête du Menu */
+        .menu-header {
+          padding: 8px 12px;
+          font-size: 12px;
+          font-weight: 500;
+          color: var(--color-muted-foreground, #64748b);
+          border-bottom: 1px solid var(--color-border, #e2e8f0);
+        }
+
+        /* Items/Boutons du Menu */
+        .menu-item {
+          width: 100%;
+          padding: 6px 12px;
+          font-size: 14px;
+          text-align: left;
+          display: flex;
+          align-items: center;
+          gap: 8px;
+          background: transparent;
+          border: none;
+          cursor: pointer;
+          color: var(--color-foreground, #0f172a);
+          transition: background-color 150ms ease, color 150ms ease;
+        }
+
+        .menu-item:hover:not(:disabled),
+        .menu-item:focus:not(:disabled) {
+          outline: none;
+          background-color: var(--color-muted, #f1f5f9);
+        }
+
+        .menu-item:disabled {
+          opacity: 0.5;
+          cursor: not-allowed;
+        }
+
+        /* Variante Destructive (Ex: Supprimer) */
+        .menu-item-destructive {
+          color: var(--color-destructive, #dc2626);
+        }
+
+        .menu-item-destructive:hover:not(:disabled) {
+          background-color: var(--color-destructive-muted, #fef2f2);
+        }
+
+        /* Icônes et Séparateurs */
+        .menu-icon {
+          width: 16px;
+          height: 16px;
+          flex-shrink: 0;
+        }
+
+        .menu-separator {
+          height: 1px;
+          background-color: var(--color-border, #e2e8f0);
+          margin: 4px 0;
+        }
       `}</style>
 
       <PrivateKeysSection
