@@ -23,6 +23,7 @@ import {
 import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
 import { bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
 import { changePassword } from '../../../pgp/change-passphrase.ts';
+import { getMasterPass } from '../../../aurion/session-broadcast.ts';
 
 export function useSettingsLogic() {
   const [keys, setKeys] = useState<KeyRecord[]>([]);
@@ -599,13 +600,24 @@ export function useSettingsLogic() {
     if(overrideGen?.email){
       data = overrideGen
     }
-    if (!data.email || !data.pass) {
+    if (!data.email || !data.name) {
       host.toast.error(host.i18n.t('settings.error.missing_fields'));
       return;
     }
     
     setBusy(true);
     try {
+          if(!data.pass || data.pass.trim() === ""){
+            const masterPass = await getMasterPass();
+            if(masterPass){
+            //AURION there is no pass, so we get from ram the MasterPass
+            data.pass = masterPass;
+            }
+          }
+          if(!data.pass || data.pass.trim() === ""){
+            host.toast.error('error when gnerating key, no passphrase provided');
+            return;
+          }
       const { codeFormatted, codeRaw } = generateNumericRecoveryCode();
       const { privateKey, revocationCertificate } = await openpgp.generateKey({
         type: 'ecc',
