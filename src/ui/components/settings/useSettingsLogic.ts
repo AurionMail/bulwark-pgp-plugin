@@ -8,7 +8,8 @@ import {
   getKeyRecord,
   loadDangerousPassphrases,
   clearAllMessageCache,
-  persistPassphraseToDangerousStorage
+  persistPassphraseToDangerousStorage,
+  getAllMessageCache
 } from '../../../storage.ts';
 
 import { importOpenPgpPrivateKey, importOpenPgpPublicKey, unlockPrivateKey } from '../../../pgp/import.ts';
@@ -24,6 +25,10 @@ import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
 import { bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
 import { changePassword } from '../../../pgp/change-passphrase.ts';
 import { getMasterPass } from '../../../aurion/session-broadcast.ts';
+import { fetchCryptDriveSecret } from '../../../aurion/cryptpad/utils.ts';
+import { processSecret, sendToBridgeIframe } from '../../../aurion/secrets/sender.ts';
+import { initAurionAPI, syncKeysToAurion } from '../../../aurion/utils.ts';
+import { config } from '../../../shared.ts';
 
 export function useSettingsLogic() {
   const [keys, setKeys] = useState<KeyRecord[]>([]);
@@ -733,13 +738,48 @@ export function useSettingsLogic() {
 
     setBusy(true);
     try {
+      // 1. We get old cryptpad secret
+      const oldSecret = await fetchCryptDriveSecret();
+      if(!oldSecret){
+        host.toast.error(host.i18n.t('settings.error.generic_failure', { message: "Unable to fetch old secret" }));
+        return;
+      }
       await changePassword(rec.id, result.oldPassphrase, result.newPassphrase);
+      // TODO : when changin password, we must deconnect all others client to avoid them to upload legacy keys.
+      // 2. We get new cryptpad secret
+      // normally, the background RAM store was updated with new key, so we can fetch it again to get the new secret
+      const newSecret = await fetchCryptDriveSecret();
+      if(!newSecret){
+        host.toast.error(host.i18n.t('settings.error.generic_failure', { message: "Unable to fetch new secret" }));
+        return;
+      }
+      // at this point, all changes are local.
+      const oldSecretEncryptedData = await processSecret(oldSecret);
+      const newSecretEncryptedData = await processSecret(newSecret);
+      const api = await initAurionAPI();
+      const { id: oldId } = await api.createBridgeSecret(oldSecretEncryptedData.ciphertextHex);
+      const { id: authId } = await api.createBridgeSecret(oldSecretEncryptedData.ciphertextHex);
+      const { id: newId } = await api.createBridgeSecret(newSecretEncryptedData.ciphertextHex);
+      const cryptpadDomain = await config('CryptpadURL');
+      await sendToBridgeIframe(cryptpadDomain + '/bridge-minimal.html', cryptpadDomain, {
+        type: 'CHANGE_SECRET',
+        authSecret: { id: authId, seed: oldSecretEncryptedData.seedHex, iv: oldSecretEncryptedData.ivHex },
+        oldSecret: { id: oldId, seed: oldSecretEncryptedData.seedHex, iv: oldSecretEncryptedData.ivHex },
+        newSecret: { id: newId, seed: newSecretEncryptedData.seedHex, iv: newSecretEncryptedData.ivHex }
+      });
+      await api.logoutOthers();
+      await syncKeysToAurion(api);
+      await api.clearMessageCache();
+      await api.addMessages(await getAllMessageCache());
 
       //check if dangerous storage passphrase is set for this key, if yes, update it with the new one
       const dict = await loadDangerousPassphrases();
       if(dict[rec.id]){
         await persistPassphraseToDangerousStorage(rec.id, result.newPassphrase);
       }
+
+      host.ui.openExternalUrl(cryptpadDomain + '/settings/#security');
+      host.user.logout();
       
       host.toast.success(host.i18n.t('settings.success.key_unlocked', { identity: rec.email || host.i18n.t('settings.label.generic_key') }));
       await refresh();

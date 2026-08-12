@@ -4,6 +4,7 @@ import { initAurionAPI } from '../utils.ts';
 import { processSecret } from '../secrets/sender.ts';
 import { config } from '../../shared.ts';
 import { sendToBridgeIframe } from '../secrets/sender.ts';
+import { fetchCryptDriveSecret } from './utils.ts';
 
 const h = React.createElement;
 
@@ -31,22 +32,6 @@ const BUTTON_STYLES_CSS = `
   }
   .cryptpad-btn-pulse { animation: pulse-icon 2s cubic-bezier(0.4, 0, 0.6, 1) infinite; }
 `;
-
-function fetchCryptDriveSecret(): Promise<string | null> {
-  return new Promise((resolve) => {
-    const channel = new BroadcastChannel('pgp-session-bus');
-    const requestId = Math.random().toString(36).substring(2);
-
-    channel.onmessage = (event) => {
-      if (event.data?.type === 'RESPONSE_CUSTOM_SECRET' && event.data?.requestId === requestId) {
-        channel.close();
-        resolve(event.data.secret);
-      }
-    };
-
-    channel.postMessage({ type: 'REQUEST_CUSTOM_SECRET', requestId, salt: 'cryptpad-plugin' });
-  });
-}
 
 export function Navbar() {
   const [isProcessing, setIsProcessing] = useState(false);

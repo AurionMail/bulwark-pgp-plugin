@@ -131,6 +131,17 @@ export class AurionAPI {
     return data;
   }
 
+  public async logoutOthers(): Promise<LoginResponse> {
+    const data = await this.request<LoginResponse>('/api/auth/logout-others', {
+      method: 'POST',
+    });
+
+    if (data.token) {
+      this.setToken(data.token);
+    }
+    return data;
+  }
+
   // ==========================================
   // 2. PGP VAULT
   // ==========================================
@@ -181,6 +192,39 @@ export class AurionAPI {
     return this.request<{ status: string }>('/api/vault', {
       method: 'POST',
       body: JSON.stringify(payload),
+    });
+  }
+
+    public async addMessages(messageCaches: EncryptedMessageCache[]): Promise<{ status: string }> {
+      const networkCache = messageCaches.map((messageCache) => ({
+        ...messageCache,
+        encryptedPayload: bufferToBase64(messageCache.encryptedPayload),
+        iv: bufferToBase64(messageCache.iv),
+      }));
+
+      const payload: NetworkVaultPayload = {
+        format: "openpgp-plugin-backup",
+        version: 7,
+        createdAt: new Date().toISOString(),
+        messageCache: networkCache
+      };
+
+      return this.request<{ status: string }>('/api/vault', {
+        method: 'POST',
+        body: JSON.stringify(payload),
+      });
+    }
+
+  public async deleteCachedMessages(messageIds: string[]): Promise<{ status: string, deleted: number }> {
+    return this.request<{ status: string, deleted: number }>('/api/vault/cache/messages', {
+      method: 'DELETE',
+      body: JSON.stringify({ message_ids: messageIds }),
+    });
+  }
+
+  public async clearMessageCache(): Promise<{ status: string, deleted: number }> {
+    return this.request<{ status: string, deleted: number }>('/api/vault/cache', {
+      method: 'DELETE',
     });
   }
 
