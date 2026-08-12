@@ -1,4 +1,3 @@
-// src/components/settings/PublicKeysSection.tsx
 import React, { RefObject } from 'react';
 import host from '@plugin-host';
 import { PublicCert } from '../../../storage.ts';
@@ -168,7 +167,7 @@ export function PublicKeysSection({
         <p style={{ margin: '0 0 10px', fontSize: '12px', color: 'var(--color-muted-foreground)' }}>
           {host.i18n.t('settings.search_public_key_desc')}
         </p>
-        <form onSubmit={onSearchAndImportKey} style={{ display: 'flex', gap: '8px' }}>
+        <form style={{ display: 'flex', gap: '8px' }}>
           <input
             type="email"
             style={{
@@ -188,7 +187,8 @@ export function PublicKeysSection({
             required
           />
           <button
-            type="submit"
+            type="button"
+            onClick={onSearchAndImportKey}
             className="composer-btn"
             disabled={busy || !searchEmail}
             style={{ padding: '0 12px' }}

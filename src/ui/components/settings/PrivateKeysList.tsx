@@ -22,6 +22,7 @@ interface PrivateKeysSectionProps {
   onRemoveKey: (rec: KeyRecord) => void;
   onFileChange: () => void;
   onGenerateKey: () => void;
+  onChangePass: (rec: KeyRecord) => void;
 }
 
 export function PrivateKeysSection({
@@ -42,6 +43,7 @@ export function PrivateKeysSection({
   onRemoveKey,
   onFileChange,
   onGenerateKey,
+  onChangePass,
 }: PrivateKeysSectionProps) {
   const visibleKeys = keys.filter((rec) => !rec.recovery);
   const hasWebAuthnLockedKeys = keys.some((k) => k.webauthn && !unlocked[k.id]);
@@ -153,6 +155,7 @@ export function PrivateKeysSection({
 
                   {/* Verrouillage / Déverrouillage */}
                   {unlocked[rec.id] ? (
+                    <>
                     <button
                       type="button"
                       style={{ ...btn, color: 'var(--color-foreground)' }}
@@ -165,6 +168,17 @@ export function PrivateKeysSection({
                         <path d="M240-80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h40v-80q0-83 58.5-141.5T480-920q83 0 141.5 58.5T680-720v80h40q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Zm0-80h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM360-640h240v-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80ZM240-160v-400 400Z" />
                       </svg>
                     </button>
+                    <button
+                      type="button"
+                      style={{ ...btn, color: 'var(--color-foreground)' }}
+                      className="lock-btn"
+                      title={host.i18n.t('settings.action.unlock')}
+                      disabled={busy}
+                      onClick={() => onChangePass(rec)}
+                    >
+                      <svg xmlns="http://www.w3.org/2000/svg" height="1rem" viewBox="0 -960 960 960" width="1rem" fill="currentColor"><path d="M160-160v-80h109q-51-44-80-106t-29-134q0-112 68-197.5T400-790v84q-70 25-115 86.5T240-480q0 54 21.5 99.5T320-302v-98h80v240H160Zm560-320q0-51-20.5-95.5T640-658v98h-80v-240h240v80H691q59 53 83.5 113.5T800-480h-80ZM640-80q-17 0-28.5-11.5T600-120v-120q0-17 11.5-28.5T640-280v-40q0-33 23.5-56.5T720-400q33 0 56.5 23.5T800-320v40q17 0 28.5 11.5T840-240v120q0 17-11.5 28.5T800-80H640Zm40-200h80v-40q0-17-11.5-28.5T720-360q-17 0-28.5 11.5T680-320v40Z"/></svg>
+                    </button>
+                    </>
                   ) : (
                     <button
                       type="button"
@@ -178,6 +192,7 @@ export function PrivateKeysSection({
                         <path d="M240-160h480v-400H240v400Zm296.5-143.5Q560-327 560-360t-23.5-56.5Q513-440 480-440t-56.5 23.5Q400-393 400-360t23.5 56.5Q447-280 480-280t56.5-23.5ZM240-160v-400 400Zm0 80q-33 0-56.5-23.5T160-160v-400q0-33 23.5-56.5T240-640h280v-80q0-83 58.5-141.5T720-920q83 0 141.5 58.5T920-720h-80q0-50-35-85t-85-35q-50 0-85 35t-35 85v80h120q33 0 56.5 23.5T800-560v400q0 33-23.5 56.5T720-80H240Z" />
                       </svg>
                     </button>
+
                   )}
 
                   {/* Déverrouillage de secours (Emergency Recovery) */}

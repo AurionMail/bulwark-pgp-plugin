@@ -7,7 +7,8 @@ import {
   KeyRecord, PublicCert, exportPluginData, importPluginData,
   getKeyRecord,
   loadDangerousPassphrases,
-  clearAllMessageCache
+  clearAllMessageCache,
+  persistPassphraseToDangerousStorage
 } from '../../../storage.ts';
 
 import { importOpenPgpPrivateKey, importOpenPgpPublicKey, unlockPrivateKey } from '../../../pgp/import.ts';
@@ -21,6 +22,7 @@ import {
 } from '../../../pgp/session-broadcast.ts';
 import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
 import { bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
+import { changePassword } from '../../../pgp/change-passphrase.ts';
 
 export function useSettingsLogic() {
   const [keys, setKeys] = useState<KeyRecord[]>([]);
@@ -384,6 +386,7 @@ export function useSettingsLogic() {
   }
 
   async function handleSearchAndImportKey(e?: React.FormEvent) {
+    console.log("handleSearchAndImportKey called");
     if (e) e.preventDefault();
     if (!searchEmail || !searchEmail.includes('@')) return;
     setBusy(true);
@@ -694,6 +697,48 @@ export function useSettingsLogic() {
     }
   }
 
+  async function changePass(rec: KeyRecord) {
+    const identity = rec.email || host.i18n.t('prompt.unlock_key.fallback_identity');
+
+    const result = await host.ui.prompt({
+      title: host.i18n.t('prompt.unlock_key.title'),
+      message: `${host.i18n.t('prompt.unlock_key.message_prefix')}${identity}${host.i18n.t('prompt.unlock_key.message_suffix')}`,
+      fields: [{ 
+        name: 'oldPassphrase', 
+        label: host.i18n.t('prompt.import_private_key.current_passphrase_label'), 
+        type: 'password', 
+        required: true 
+      },
+    { 
+        name: 'newPassphrase', 
+        label: host.i18n.t('prompt.import_private_key.storage_passphrase_label'), 
+        type: 'password', 
+        required: true 
+      }]
+    });
+
+    if (!result || !result.oldPassphrase || !result.newPassphrase) return;
+
+    setBusy(true);
+    try {
+      await changePassword(rec.id, result.oldPassphrase, result.newPassphrase);
+
+      //check if dangerous storage passphrase is set for this key, if yes, update it with the new one
+      const dict = await loadDangerousPassphrases();
+      if(dict[rec.id]){
+        await persistPassphraseToDangerousStorage(rec.id, result.newPassphrase);
+      }
+      
+      host.toast.success(host.i18n.t('settings.success.key_unlocked', { identity: rec.email || host.i18n.t('settings.label.generic_key') }));
+      await refresh();
+    } catch (err) {
+      const error = err as Error;
+      host.toast.error(host.i18n.t('settings.error.unlock_failed', { message: error?.message ? error.message : host.i18n.t('settings.error.fallback_unlock_failed') }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   return {
     keys, certs, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
@@ -714,6 +759,7 @@ export function useSettingsLogic() {
     handleSetDefaultPrivateKey,
     handleSetServerSideEncryption,
     handleExportJSON,
-    handleImportJSON
+    handleImportJSON,
+    changePass
   };
 }
