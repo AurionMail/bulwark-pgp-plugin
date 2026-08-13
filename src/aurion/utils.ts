@@ -128,7 +128,7 @@ async function restoreKeys(masterPass: string): Promise<void> {
       for (const rec of keys) {
         if(rec.recovery === true) continue; // Skip recovery keys
           // This naturally calls `getIndex` inside unlockPrivateKey and loads RAM
-          const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(rec, masterPass, true);
+          const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(rec, masterPass, true);
 
           broadcastUnlockKey({ 
         id: rec.id, 
@@ -136,6 +136,7 @@ async function restoreKeys(masterPass: string): Promise<void> {
         signingKey, 
         decryptionKey ,
         aesKey: aesKey,
+        hmacKey: hmacKey
       });
 
       if (settings().StoreDangerous && await config('allowPersistentKeys') === true) {
