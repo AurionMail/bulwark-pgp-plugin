@@ -170,7 +170,7 @@ async function askForKeyAndRerender(keyRecordId: string, identity: string): Prom
     if (!rec) {
       throw new Error('Key record not found for ID: ' + keyRecordId);
     }
-    const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(rec, result.passphrase);
+    const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(rec, result.passphrase);
           
     broadcastUnlockKey({ 
             id: rec.id, 
@@ -178,6 +178,7 @@ async function askForKeyAndRerender(keyRecordId: string, identity: string): Prom
             signingKey, 
             decryptionKey ,
             aesKey: aesKey,
+            hmacKey: hmacKey
           });
           host.ui.rerenderEmail();
           host.ui.rerenderFetchedEmails();

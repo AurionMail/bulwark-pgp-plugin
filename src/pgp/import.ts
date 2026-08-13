@@ -22,6 +22,7 @@ interface UnlockResult {
   signingKey: string;
   decryptionKey: string;
   aesKey?: CryptoKey;
+  hmacKey?: CryptoKey;
 }
 
 const ARGON2_DEFAULTS = {
@@ -134,6 +135,7 @@ export async function unlockPrivateKey(record: KeyRecord, passphrase: string, au
   let masterKey: CryptoKey | undefined;
   let PGPWrappingKey: CryptoKey | undefined;
   let aesKey: CryptoKey | undefined;
+  let hmacKey: CryptoKey | undefined;
 
   if(record.argon2Params !== undefined) {
     masterKey = await deriveMasterHkdfKey(passphrase, record.salt, {
@@ -179,6 +181,7 @@ export async function unlockPrivateKey(record: KeyRecord, passphrase: string, au
   if (record.default === true && (masterKey !== undefined || record.aesSalt !== undefined)) {
     if(masterKey){
       aesKey = await deriveSubKey(masterKey, 'aes-key');
+      hmacKey = await deriveSubKey(masterKey, 'secret-generator', true);
     }else if(record.aesSalt !== undefined){// legacy path for existing keys without argon2Params
       aesKey = await deriveAesKeyFromPgpParams(passphrase, record.aesSalt, record.kdfIterations);
     }else{
@@ -191,7 +194,8 @@ export async function unlockPrivateKey(record: KeyRecord, passphrase: string, au
     unlockedPrivateKey: openPgpPrivateKey.armor(),
     signingKey: openPgpPrivateKey.armor(),
     decryptionKey: openPgpPrivateKey.armor(),
-    ...(aesKey && { aesKey })
+    ...(aesKey && { aesKey }),
+    ...(hmacKey && { hmacKey })
   };
 }
 
@@ -298,9 +302,18 @@ async function deriveMasterHkdfKey(
 
 async function deriveSubKey(
   masterHkdfKey: CryptoKey,
-  infoString: string
+  infoString: string,
+  hmac: boolean = false
 ): Promise<CryptoKey> {
   const encoder = new TextEncoder();
+
+  const keyAlgorithm: AesKeyGenParams | HmacImportParams = hmac
+    ? { name: 'HMAC', hash: 'SHA-256', length: 256 }
+    : { name: 'AES-GCM', length: 256 };
+
+  const keyUsages: KeyUsage[] = hmac 
+    ? ['sign'] 
+    : ['encrypt', 'decrypt'];
 
   return crypto.subtle.deriveKey(
     {
@@ -310,9 +323,9 @@ async function deriveSubKey(
       info: encoder.encode(infoString)
     },
     masterHkdfKey,
-    { name: 'AES-GCM', length: 256 },
+    keyAlgorithm,
     false,
-    ['encrypt', 'decrypt']
+    keyUsages
   );
 }
 

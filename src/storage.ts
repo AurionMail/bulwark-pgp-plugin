@@ -82,6 +82,7 @@ export interface SessionKeysEntry {
   signingKey: string;          // ASCII Armored
   decryptionKey: string;       // ASCII Armored
   aesKey?: CryptoKey;
+  hmacKey?: CryptoKey;
 }
 
 export interface EncryptedMessageCache {
