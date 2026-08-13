@@ -29,6 +29,7 @@ import { fetchCryptDriveSecret } from '../../../aurion/cryptpad/utils.ts';
 import { processSecret, sendToBridgeIframe } from '../../../aurion/secrets/sender.ts';
 import { initAurionAPI, syncKeysToAurion } from '../../../aurion/utils.ts';
 import { config } from '../../../shared.ts';
+import { argon2id } from 'hash-wasm'; 
 
 export function useSettingsLogic() {
   const [keys, setKeys] = useState<KeyRecord[]>([]);
@@ -775,6 +776,29 @@ export function useSettingsLogic() {
       await syncKeysToAurion(api);
       await api.clearMessageCache();
       await api.addMessages(await getAllMessageCache());
+      // derivate auth password from secrets to update
+      const username = rec.email.split('@')[0];
+      const salt = new TextEncoder().encode(`auth_salt_${username}`);
+      const oldHash = await argon2id({
+          password: result.oldPassphrase,
+          salt: salt,
+          parallelism: 1,
+          iterations: 3,
+          memorySize: 65536,
+          hashLength: 32,
+          outputType: 'hex',
+        });
+      const newHash = await argon2id({
+          password: result.newPassphrase,
+          salt: salt,
+          parallelism: 1,
+          iterations: 3,
+          memorySize: 65536,
+          hashLength: 32,
+          outputType: 'hex',
+        });
+
+      await api.changePassword(oldHash, newHash);
 
       //check if dangerous storage passphrase is set for this key, if yes, update it with the new one
       const dict = await loadDangerousPassphrases();

@@ -1,6 +1,6 @@
 import { KeyRecord, EncryptedMessageCache } from '../storage.ts';
 import { bufferToBase64, base64ToBuffer } from '../util.ts';
-import host  from '@plugin-host';
+import host from '@plugin-host';
 
 export interface AuthUser {
   id: string;
@@ -11,6 +11,10 @@ export interface AuthUser {
 export interface LoginResponse {
   token: string;
   user: AuthUser;
+}
+
+export interface ChangePasswordResponse {
+  message: string;
 }
 
 export interface BridgeSecretCreated {
@@ -32,11 +36,10 @@ export interface NetworkVaultPayload {
   messageCache?: any[]; // EncryptedMessageCache avec des strings
 }
 
-
 const base64ToUint8Array = (base64: string): Uint8Array => {
-    const result = base64ToBuffer(base64);
-    if(result)return new Uint8Array(result);
-    return new Uint8Array();
+  const result = base64ToBuffer(base64);
+  if (result) return new Uint8Array(result);
+  return new Uint8Array();
 };
 
 export class AurionAPI {
@@ -72,6 +75,7 @@ export class AurionAPI {
     const method = (options.method || 'GET').toUpperCase();
     const fullUrl = `${this.baseUrl}${endpoint}`;
     host.log.info(`AurionAPI Request: ${method} ${fullUrl}`, options);
+
     // 1. Préparation des headers
     const headers: Record<string, string> = {
       'Content-Type': 'application/json',
@@ -105,7 +109,7 @@ export class AurionAPI {
       if (parsedData && parsedData.error) {
         errorMessage = parsedData.error;
       }
-      if(res.status === 401) {
+      if (res.status === 401 || parsedData?.action === 'logout') {
         this.clearToken();
         host.storage.set('logoutAsked', Date.now());
         host.user.logout();
@@ -125,7 +129,7 @@ export class AurionAPI {
       method: 'POST',
       body: JSON.stringify({ email, password }),
     });
-    
+
     // Auto-configuration du token après un login réussi
     this.setToken(data.token);
     return data;
@@ -142,11 +146,21 @@ export class AurionAPI {
     return data;
   }
 
+  public async changePassword(currentPassword: string, newPassword: string): Promise<ChangePasswordResponse> {
+    return this.request<ChangePasswordResponse>('/api/auth/change-password', {
+      method: 'POST',
+      body: JSON.stringify({
+        current_password: currentPassword,
+        new_password: newPassword,
+      }),
+    });
+  }
+
   // ==========================================
   // 2. PGP VAULT
   // ==========================================
 
-  public async getVault(): Promise<{ keys: KeyRecord[], messageCache: EncryptedMessageCache[] }> {
+  public async getVault(): Promise<{ keys: KeyRecord[]; messageCache: EncryptedMessageCache[] }> {
     const data = await this.request<NetworkVaultPayload>('/api/vault', {
       method: 'GET',
     });
@@ -158,11 +172,13 @@ export class AurionAPI {
       salt: base64ToBuffer(k.salt),
       iv: base64ToBuffer(k.iv),
       aesSalt: k.aesSalt ? base64ToBuffer(k.aesSalt) : undefined,
-      webauthn: k.webauthn ? {
-        credentialId: base64ToBuffer(k.webauthn.credentialId),
-        encryptedPassphrase: base64ToBuffer(k.webauthn.encryptedPassphrase),
-        iv: base64ToBuffer(k.webauthn.iv),
-      } : undefined,
+      webauthn: k.webauthn
+        ? {
+            credentialId: base64ToBuffer(k.webauthn.credentialId),
+            encryptedPassphrase: base64ToBuffer(k.webauthn.encryptedPassphrase),
+            iv: base64ToBuffer(k.webauthn.iv),
+          }
+        : undefined,
     }));
 
     const messageCache: EncryptedMessageCache[] = (data.messageCache || []).map((m: any) => ({
@@ -175,18 +191,19 @@ export class AurionAPI {
   }
 
   public async addMessage(messageCache: EncryptedMessageCache): Promise<{ status: string }> {
-
-    const networkCache = [{
-      ...messageCache,
-      encryptedPayload: bufferToBase64(messageCache.encryptedPayload),
-      iv: bufferToBase64(messageCache.iv),
-    }];
+    const networkCache = [
+      {
+        ...messageCache,
+        encryptedPayload: bufferToBase64(messageCache.encryptedPayload),
+        iv: bufferToBase64(messageCache.iv),
+      },
+    ];
 
     const payload: NetworkVaultPayload = {
-      format: "openpgp-plugin-backup",
+      format: 'openpgp-plugin-backup',
       version: 7,
       createdAt: new Date().toISOString(),
-      messageCache: networkCache
+      messageCache: networkCache,
     };
 
     return this.request<{ status: string }>('/api/vault', {
@@ -195,35 +212,35 @@ export class AurionAPI {
     });
   }
 
-    public async addMessages(messageCaches: EncryptedMessageCache[]): Promise<{ status: string }> {
-      const networkCache = messageCaches.map((messageCache) => ({
-        ...messageCache,
-        encryptedPayload: bufferToBase64(messageCache.encryptedPayload),
-        iv: bufferToBase64(messageCache.iv),
-      }));
+  public async addMessages(messageCaches: EncryptedMessageCache[]): Promise<{ status: string }> {
+    const networkCache = messageCaches.map((messageCache) => ({
+      ...messageCache,
+      encryptedPayload: bufferToBase64(messageCache.encryptedPayload),
+      iv: bufferToBase64(messageCache.iv),
+    }));
 
-      const payload: NetworkVaultPayload = {
-        format: "openpgp-plugin-backup",
-        version: 7,
-        createdAt: new Date().toISOString(),
-        messageCache: networkCache
-      };
+    const payload: NetworkVaultPayload = {
+      format: 'openpgp-plugin-backup',
+      version: 7,
+      createdAt: new Date().toISOString(),
+      messageCache: networkCache,
+    };
 
-      return this.request<{ status: string }>('/api/vault', {
-        method: 'POST',
-        body: JSON.stringify(payload),
-      });
-    }
+    return this.request<{ status: string }>('/api/vault', {
+      method: 'POST',
+      body: JSON.stringify(payload),
+    });
+  }
 
-  public async deleteCachedMessages(messageIds: string[]): Promise<{ status: string, deleted: number }> {
-    return this.request<{ status: string, deleted: number }>('/api/vault/cache/messages', {
+  public async deleteCachedMessages(messageIds: string[]): Promise<{ status: string; deleted: number }> {
+    return this.request<{ status: string; deleted: number }>('/api/vault/cache/messages', {
       method: 'DELETE',
       body: JSON.stringify({ message_ids: messageIds }),
     });
   }
 
-  public async clearMessageCache(): Promise<{ status: string, deleted: number }> {
-    return this.request<{ status: string, deleted: number }>('/api/vault/cache', {
+  public async clearMessageCache(): Promise<{ status: string; deleted: number }> {
+    return this.request<{ status: string; deleted: number }>('/api/vault/cache', {
       method: 'DELETE',
     });
   }
@@ -235,18 +252,20 @@ export class AurionAPI {
       salt: bufferToBase64(k.salt),
       iv: bufferToBase64(k.iv),
       aesSalt: k.aesSalt ? bufferToBase64(k.aesSalt) : undefined,
-      webauthn: k.webauthn ? {
-        credentialId: bufferToBase64(k.webauthn.credentialId),
-        encryptedPassphrase: bufferToBase64(k.webauthn.encryptedPassphrase),
-        iv: bufferToBase64(k.webauthn.iv),
-      } : undefined,
+      webauthn: k.webauthn
+        ? {
+            credentialId: bufferToBase64(k.webauthn.credentialId),
+            encryptedPassphrase: bufferToBase64(k.webauthn.encryptedPassphrase),
+            iv: bufferToBase64(k.webauthn.iv),
+          }
+        : undefined,
     }));
 
     const payload: NetworkVaultPayload = {
-      format: "openpgp-plugin-backup",
+      format: 'openpgp-plugin-backup',
       version: 7,
       createdAt: new Date().toISOString(),
-      keys: networkKeys
+      keys: networkKeys,
     };
 
     return this.request<{ status: string }>('/api/vault', {
@@ -274,5 +293,4 @@ export class AurionAPI {
   }
 }
 
-// Instance par défaut (Singleton) à utiliser dans tout le plugin si nécessaire
-export const aurionApi = new AurionAPI('https://api.aurion.dev'); // Remplace par ta vraie URL
+export const aurionApi = new AurionAPI('https://api.aurion.dev');
