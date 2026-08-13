@@ -106,7 +106,8 @@ export function useSettingsLogic() {
       unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
       signingKey: unlockedSession.signingKey, 
       decryptionKey: unlockedSession.decryptionKey,
-      aesKey: unlockedSession.aesKey
+      aesKey: unlockedSession.aesKey,
+      hmacKey: unlockedSession.hmacKey
     });
 
       host.toast.success(host.i18n.t('settings.success.private_key_imported', { identity: keyRecord.email || host.i18n.t('settings.label.generic_identity') }));
@@ -201,9 +202,9 @@ export function useSettingsLogic() {
           rec.webauthn.iv
         );
 
-        const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(rec, realPassphrase);
+        const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(rec, realPassphrase);
         
-        broadcastUnlockKey({ id: rec.id, unlockedPrivateKey, signingKey, decryptionKey, aesKey });
+        broadcastUnlockKey({ id: rec.id, unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey });
       }
 
       host.toast.success(host.i18n.t('settings.success.unlock_all_webauthn'));
@@ -233,7 +234,7 @@ export function useSettingsLogic() {
 
     setBusy(true);
     try {
-      const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(rec, result.passphrase);
+      const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(rec, result.passphrase);
       
       broadcastUnlockKey({ 
         id: rec.id, 
@@ -241,6 +242,7 @@ export function useSettingsLogic() {
         signingKey, 
         decryptionKey ,
         aesKey: aesKey,
+        hmacKey: hmacKey
       });
       
       host.toast.success(host.i18n.t('settings.success.key_unlocked', { identity: rec.email || host.i18n.t('settings.label.generic_key') }));
@@ -348,7 +350,8 @@ export function useSettingsLogic() {
         unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
         signingKey: unlockedSession.signingKey, 
         decryptionKey: unlockedSession.decryptionKey,
-        aesKey: unlockedSession.aesKey
+        aesKey: unlockedSession.aesKey,
+        hmacKey: unlockedSession.hmacKey
       });
 
       host.toast.success("Your passphrase has been successfully reset!");
@@ -633,7 +636,8 @@ export function useSettingsLogic() {
       unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
       signingKey: unlockedSession.signingKey, 
       decryptionKey: unlockedSession.decryptionKey,
-      aesKey: unlockedSession.aesKey
+      aesKey: unlockedSession.aesKey,
+      hmacKey: unlockedSession.hmacKey
     });
 
 

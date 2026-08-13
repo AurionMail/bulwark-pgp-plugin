@@ -42,7 +42,8 @@ export async function changePassword(keyID: string, oldPassphrase: string, newPa
       unlockedPrivateKey: unlockedSession.unlockedPrivateKey, 
       signingKey: unlockedSession.signingKey, 
       decryptionKey: unlockedSession.decryptionKey,
-      aesKey: unlockedSession.aesKey
+      aesKey: unlockedSession.aesKey,
+      hmacKey: unlockedSession.hmacKey
     });
 
     host.toast.success("Your passphrase has been successfully changed!");

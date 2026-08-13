@@ -257,25 +257,19 @@ async function maybeAutoImportSigner(pub:string) {
   }
 }
 
-export async function deriveSecret(aesKey: CryptoKey, salt: string): Promise<string> {
+export async function deriveSecret(hmacKey: CryptoKey, salt: string): Promise<string> {
   const enc = new TextEncoder();
-  const messageFixe = enc.encode(salt);
-  const iv = new Uint8Array(12);
+  const data = enc.encode(salt);
 
-  const ciphertext = await crypto.subtle.encrypt(
-    {
-      name: "AES-GCM",
-      iv: iv
-    },
-    aesKey,
-    messageFixe
+  const signature = await crypto.subtle.sign(
+    'HMAC',
+    hmacKey,
+    data
   );
 
-  const secretHash = await crypto.subtle.digest("SHA-256", ciphertext);
-
-  return Array.from(new Uint8Array(secretHash))
-    .map((b) => b.toString(16).padStart(2, "0"))
-    .join("");
+  return Array.from(new Uint8Array(signature))
+    .map((b) => b.toString(16).padStart(2, '0'))
+    .join('');
 }
 
 export async function recipientKeysFor(emails: string[]): Promise<{

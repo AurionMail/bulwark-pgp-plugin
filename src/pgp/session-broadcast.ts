@@ -94,8 +94,8 @@ export function initBackgroundSessionListener(): void {
           if (!defaultKey) {
             return;
           }
-         const aesKey = _backgroundSessionKeys[defaultKey.id]?.aesKey;
-         if (!aesKey) {
+         const hmacKey = _backgroundSessionKeys[defaultKey.id]?.hmacKey;
+         if (!hmacKey) {
             channel.postMessage({
               type: 'RESPONSE_CUSTOM_SECRET',
               requestId: msg.requestId,
@@ -103,7 +103,7 @@ export function initBackgroundSessionListener(): void {
             });
             return;
           }
-        const secret = await deriveSecret(aesKey, msg.salt);
+        const secret = await deriveSecret(hmacKey, msg.salt);
         
         channel.postMessage({
           type: 'RESPONSE_CUSTOM_SECRET',
@@ -283,7 +283,7 @@ export async function restoreKeysFromDangerousStorage(): Promise<void> {
         const rec = await getKeyRecord(keyId);
         if (rec) {
           // This naturally calls `getIndex` inside unlockPrivateKey and loads RAM
-          const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(rec, passphrases[keyId], true);
+          const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(rec, passphrases[keyId], true);
 
           broadcastUnlockKey({ 
         id: rec.id, 
@@ -291,6 +291,7 @@ export async function restoreKeysFromDangerousStorage(): Promise<void> {
         signingKey, 
         decryptionKey ,
         aesKey: aesKey,
+        hmacKey: hmacKey
       });
 
         }

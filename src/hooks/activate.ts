@@ -24,7 +24,7 @@ export async function askForDefaultKeyPass(): Promise<void> {
     const unlockPassphrase = result.passphrase;
 
     try {
-      const { unlockedPrivateKey, signingKey, decryptionKey, aesKey } = await unlockPrivateKey(defaultKey, unlockPassphrase);     
+      const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(defaultKey, unlockPassphrase);     
       
       broadcastUnlockKey({ 
         id: defaultKey.id, 
@@ -32,6 +32,7 @@ export async function askForDefaultKeyPass(): Promise<void> {
         signingKey, 
         decryptionKey,
         aesKey: aesKey,
+        hmacKey: hmacKey,
       });
       host.ui.rerenderFetchedEmails();
     } catch (error) {
