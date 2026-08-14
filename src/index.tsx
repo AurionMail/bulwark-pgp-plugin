@@ -120,7 +120,9 @@ export async function activate(api :any) {
     });
   }
 
-  if((settings().askForDefaultKeyPassOnActivated || await config('blockUntilDefaultKeyIsAvailable') === true)&& locked){
-      await askForDefaultKeyPass();
+  if(((settings().askForDefaultKeyPassOnActivated == "default" || settings().askForDefaultKeyPassOnActivated == "all") || await config('blockUntilDefaultKeyIsAvailable') === true) && locked){
+    let value = settings().askForDefaultKeyPassOnActivated || "default";
+    if(value == "false") value = "default";
+      await askForDefaultKeyPass(value);
   }
 }

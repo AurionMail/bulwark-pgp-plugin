@@ -187,6 +187,12 @@ export async function getDefaultKeyRecord(): Promise<KeyRecord |undefined>{
   return all.find((r) => r.default === true);
 }
 
+export async function getAllDefaultKeyRecords(): Promise<KeyRecord[]> {
+  const db = await openDB();
+  let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  return all.filter((r) => r.default === true);
+}
+
 export async function deleteKeyRecord(id: string): Promise<void> {
   const db = await openDB();
   await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(id));
