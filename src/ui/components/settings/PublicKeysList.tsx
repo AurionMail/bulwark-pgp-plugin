@@ -2,6 +2,7 @@ import React, { RefObject } from 'react';
 import host from '@plugin-host';
 import { PublicCert } from '../../../storage.ts';
 import { btn, fmtDate, isExpired, card } from '../../shared.ts';
+import { AccountEntry } from '../../../util.ts';
 
 interface PublicKeysSectionProps {
   certs: PublicCert[];
@@ -13,6 +14,8 @@ interface PublicKeysSectionProps {
   onUploadKey: (c: PublicCert) => void;
   onImportCertFile: () => void;
   onSearchAndImportKey: (e?: React.FormEvent) => void;
+  selectedAccountId: string | undefined;
+  accounts: AccountEntry[]; // Replace 'any[]' with the actual type for accounts
 }
 
 export function PublicKeysSection({
@@ -25,6 +28,8 @@ export function PublicKeysSection({
   onUploadKey,
   onImportCertFile,
   onSearchAndImportKey,
+  selectedAccountId,
+  accounts,
 }: PublicKeysSectionProps) {
   return (
     <div>
@@ -42,10 +47,17 @@ export function PublicKeysSection({
         </div>
       ) : (
         <div style={{ display: 'flex', flexDirection: 'column', gap: '6px', marginBottom: '12px' }}>
-          {certs.map((c) => (
+          {certs.map((c) => { 
+            const accentColor = selectedAccountId == undefined 
+              ? accounts.find((a) => a.id === c.accountId)?.avatarColor
+              : undefined;
+
+              const borderColor = accentColor || 'var(--color-border, #e2e8f0)';
+            
+            return(
             <div
               key={c.id}
-              style={{ ...card, display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center' }}
+              style={{ ...card, display: 'flex', justifyContent: 'space-between', gap: '8px', alignItems: 'center', borderColor: borderColor }}
             >
               <div style={{ display: 'flex', alignItems: 'center', gap: '12px' }}>
                 <div>
@@ -119,7 +131,7 @@ export function PublicKeysSection({
                 </button>
               )}
             </div>
-          ))}
+          )})}
         </div>
       )}
 

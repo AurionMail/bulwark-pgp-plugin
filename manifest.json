@@ -289,7 +289,10 @@
       "settings.persisted_badge": "Persisted",
       "settings.server_side_badge": "Used for server encryption ",
       "settings.action.options": "More options",
-      "settings.action.change_passphrase": "Change passphrase"
+      "settings.action.change_passphrase": "Change passphrase",
+      "settings.pro_mode_desc": "Display all keys (all accounts)",
+      "settings.pro_mode_title": "Pro Mode",
+      "settings.account_mode_desc": "Keys for account"
     }
   }
 }

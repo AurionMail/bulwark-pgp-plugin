@@ -4,11 +4,14 @@ import host from '@plugin-host';
 import { KeyRecord } from '../../../storage.ts';
 import { btn, fmtDate, isExpired, card } from '../../shared.ts';
  import { useState } from 'react';
+import { AccountEntry } from '../../../util.ts';
 interface PrivateKeysSectionProps {
   keys: KeyRecord[];
   unlocked: Record<string, boolean>;
   persisted: Record<string, boolean>;
   busy: boolean;
+  selectedAccountId: string | undefined;
+  accounts: AccountEntry[];
   fileRef: RefObject<HTMLInputElement | null>;
   gen: { open: boolean; name: string; email: string; pass: string };
   setGen: React.Dispatch<React.SetStateAction<{ open: boolean; name: string; email: string; pass: string }>>;
@@ -44,6 +47,8 @@ export function PrivateKeysSection({
   onFileChange,
   onGenerateKey,
   onChangePass,
+  selectedAccountId,
+  accounts,
 }: PrivateKeysSectionProps) {
   const visibleKeys = keys.filter((rec) => !rec.recovery);
   const hasWebAuthnLockedKeys = keys.some((k) => k.webauthn && !unlocked[k.id]);
@@ -89,8 +94,14 @@ export function PrivateKeysSection({
           )}
 
           {/* Liste des cartes de clés privées */}
-          {visibleKeys.map((rec) => (
-            <div key={rec.id} style={{ ...card, display: 'flex', flexDirection: 'column', gap: '10px' }}>
+          {visibleKeys.map((rec) => { 
+              const accentColor = selectedAccountId == undefined 
+              ? accounts.find((a) => a.id === rec.accountId)?.avatarColor
+              : undefined;
+
+              const borderColor = accentColor || 'var(--color-border, #e2e8f0)';
+            return (
+            <div key={rec.id} style={{ ...card, display: 'flex', flexDirection: 'column', gap: '10px', borderColor: borderColor }}>
               <div style={{ display: 'flex', justifyContent: 'space-between', gap: '8px', flexWrap: 'wrap' }}>
                 
                 {/* Informations sur la clé */}
@@ -100,23 +111,23 @@ export function PrivateKeysSection({
                     checked={!!rec.default}
                     disabled={busy}
                     onChange={(e) => onSetDefaultKey(rec, e.target.checked)}
-                    style={{ cursor: 'pointer', width: '16px', height: '16px', marginTop: '3px' }}
+                    style={{ cursor: 'pointer', width: '16px', height: '16px', marginTop: '3px', accentColor: accentColor}}
                   />
                   <div>
                     <div style={{ fontWeight: 600, fontSize: '14px' }}>
                       {rec.email || rec.subject || 'OpenPGP User'}
                       {rec.default && (
-                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' }}>
+                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: accentColor || 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' }}>
                           {host.i18n.t('settings.default_badge')}
                         </span>
                       )}
                       {rec.serverSide && (
-                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' }}>
+                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: accentColor || 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' }}>
                           {host.i18n.t('settings.server_side_badge')}
                         </span>
                       )}
                       {persisted[rec.id] && (
-                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: 'var(--color-warning, #fffbeb)', color: 'var(--color-warning-foreground, #92400e)', fontWeight: 'normal' }}>
+                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: accentColor || 'var(--color-warning, #fffbeb)', color: 'var(--color-warning-foreground, #92400e)', fontWeight: 'normal' }}>
                           {host.i18n.t('settings.persisted_badge')}
                         </span>
                       )}
@@ -290,7 +301,7 @@ export function PrivateKeysSection({
                 </div>
               </div>
             </div>
-          ))}
+          )})}
         </div>
       )}
 

@@ -6,7 +6,7 @@ import { BackupSection } from './components/settings/BackupSection.tsx';
 import { OnboardingFlow } from './onboarding.tsx';
 import { PrivateKeysSection } from './components/settings/PrivateKeysList.tsx';
 import { PublicKeysSection } from './components/settings/PublicKeysList.tsx';
-import { AccountSelect } from './components/settings/AccountSelector.tsx';
+import { ProModeToggle } from './components/settings/AccountSelector.tsx';
 
 export function SettingsSection() {
 const {
@@ -214,7 +214,7 @@ const {
         }
       `}</style>
 
-      <AccountSelect
+      <ProModeToggle
         accounts={accounts}
         selectedAccountId={selectedAccountId}
         onSelectAccount={selectAccount}
@@ -239,6 +239,8 @@ const {
         onFileChange={handleFileChange}
         onGenerateKey={() => handleGenerateKey()}
         onChangePass={changePass}
+        accounts={accounts}
+        selectedAccountId={selectedAccountId}
       />
 
       <PublicKeysSection
@@ -251,6 +253,8 @@ const {
         onUploadKey={handleUploadKey}
         onImportCertFile={importCertFile}
         onSearchAndImportKey={handleSearchAndImportKey}
+        selectedAccountId={selectedAccountId}
+        accounts={accounts}
       />
 
       <BackupSection
