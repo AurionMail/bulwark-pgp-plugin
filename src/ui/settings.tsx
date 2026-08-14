@@ -6,9 +6,13 @@ import { BackupSection } from './components/settings/BackupSection.tsx';
 import { OnboardingFlow } from './onboarding.tsx';
 import { PrivateKeysSection } from './components/settings/PrivateKeysList.tsx';
 import { PublicKeysSection } from './components/settings/PublicKeysList.tsx';
+import { AccountSelect } from './components/settings/AccountSelector.tsx';
 
 export function SettingsSection() {
 const {
+  accounts,
+    selectedAccountId,
+    selectAccount,
     keys, certs, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
     searchEmail, setSearchEmail, gen, setGen,
@@ -209,6 +213,12 @@ const {
           margin: 4px 0;
         }
       `}</style>
+
+      <AccountSelect
+        accounts={accounts}
+        selectedAccountId={selectedAccountId}
+        onSelectAccount={selectAccount}
+      />
 
       <PrivateKeysSection
         keys={keys}

@@ -1,6 +1,6 @@
 import * as openpgp from 'openpgp';
 import { argon2id } from 'hash-wasm';
-import { ContactEmail, generateUUID } from '../util.ts';
+import { ContactEmail, generateUUID, getCurrentAccountId } from '../util.ts';
 import { extractKeyInfo } from './key-utils.ts';
 import { KeyRecord, listPublicCerts, persistPassphraseToDangerousStorage, savePublicCert } from '../storage.ts';
 import { KDF_ITERATIONS, AES_KEY_LENGTH, settings, config } from '../shared.ts';
@@ -79,8 +79,11 @@ export async function importOpenPgpPrivateKey(
   const { encrypted, salt, iv, argon2Params } = await encryptPrivateKeyData(textBytes.buffer, storagePassphrase);
 
   // 4. Generate KeyRecord
+  //get current account ID
+  const accountId = await getCurrentAccountId();
   const keyRecord: KeyRecord = {
     id: generateUUID(),
+    accountId,
     email,
     publicKey: keyInfo.armoredPublicKey || '',
     encryptedPrivateKey: encrypted,
@@ -108,6 +111,7 @@ export async function importOpenPgpPrivateKey(
     if (!alreadyExists) {
       await savePublicCert({
         id: generateUUID(),
+        accountId,
         email,
         publicKey: keyInfo.armoredPublicKey,
         issuer: keyRecord.issuer,
@@ -187,7 +191,7 @@ export async function unlockPrivateKey(record: KeyRecord, passphrase: string, au
     }else{
       throw new Error('Cannot derive AES key: missing parameters');
     }
-    await getIndex(aesKey, passphrase, record);
+    await getIndex(aesKey, record);
   }
 
   return {

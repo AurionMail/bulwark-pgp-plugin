@@ -139,24 +139,27 @@ async function handleInlineEncrypted(
   let htmlBody = '';
   let textBody = '';
   let attachments = ctx.attachments;
+  let result;
 
   if (detection.htmlBody) {
-    const htmlBytes = (await pgpDecrypt({
+    result = await pgpDecrypt({
       cmsBytes: new TextEncoder().encode(detection.htmlBody),
       keyRecords,
       unlockedKeys,
       knownPublicKeys,
-    })).mimeBytes;
+    });
+    const htmlBytes = result.mimeBytes;
     htmlBody = decoder.decode(htmlBytes);
   }
 
   if (detection.textBody) {
-    const textBytes = (await pgpDecrypt({
+    result = await pgpDecrypt({
       cmsBytes: new TextEncoder().encode(detection.textBody),
       keyRecords,
       unlockedKeys,
       knownPublicKeys,
-    })).mimeBytes;
+    });
+    const textBytes = result.mimeBytes;
     textBody = decoder.decode(textBytes);
 
     const metadataRegex = /<--PGP_METADATA_START-->([\s\S]*?)<--PGP_METADATA_END-->/;
@@ -247,7 +250,7 @@ async function handleInlineEncrypted(
   const verif = { isEncrypted: true, decryptionSuccess: true, isSigned: false }
   await persistVerifyStatus(ctx.id, verif);
 
-  await indexAndPersistDecryptedMail(ctx.id, textBody)
+  await indexAndPersistDecryptedMail(result?.keyRecordAccountId, ctx.id, textBody);
   return {
     ...body,
     handledBy: 'openpgp',
@@ -344,7 +347,7 @@ async function handleMimeEncrypted(
   if (parsed.attachments) {
     await scanAndImportKeysFromAttachments(parsed.attachments);
   }
-   await indexAndPersistDecryptedMail(ctx.id, parsed.text ||parsed.html || '');
+   await indexAndPersistDecryptedMail(result.keyRecordAccountId, ctx.id, parsed.text ||parsed.html || '');
   return {
     ...body,
     handledBy: 'openpgp',

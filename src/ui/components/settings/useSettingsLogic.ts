@@ -21,10 +21,12 @@ import {
   subscribeToKeyUpdates
 } from '../../../pgp/session-broadcast.ts';
 import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
-import { bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
+import { AccountEntry, bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
 import { changePassword } from '../../../pgp/change-passphrase.ts';
 
 export function useSettingsLogic() {
+  const [accounts, setAccounts] = useState<AccountEntry[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
   const [keys, setKeys] = useState<KeyRecord[]>([]);
   const [certs, setCerts] = useState<PublicCert[]>([]); 
   const [unlocked, setUnlocked] = useState<Record<string, boolean>>({});
@@ -37,9 +39,46 @@ export function useSettingsLogic() {
   const [searchEmail, setSearchEmail] = useState<string>('');
   const [gen, setGen] = useState({ open: false, name: '', email: '', pass: '' });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAccounts() {
+      setBusy(true);
+      try {
+        const fetchedAccounts: AccountEntry[] = await host.user.getAccounts(); 
+        console.warn(fetchedAccounts);
+        
+        if (isMounted) {
+          setAccounts(fetchedAccounts);
+
+          const connectedAccount = fetchedAccounts.find((acc) => acc.isActive);
+          if (connectedAccount) {
+            setSelectedAccountId(connectedAccount.id);
+          } else {
+            setSelectedAccountId(undefined);
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des comptes:", error);
+      } finally {
+        if (isMounted) setBusy(false);
+      }
+    }
+
+    void loadAccounts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectAccount = useCallback((accountId: string | undefined) => {
+    setSelectedAccountId(accountId);
+  }, []);
   
   const refresh = useCallback(async () => {
-    const [k, c] = await Promise.all([listKeyRecords(), listPublicCerts()]);
+    console.log("Refreshing keys and certs for account:", selectedAccountId);
+    const [k, c] = await Promise.all([listKeyRecords(selectedAccountId), listPublicCerts(undefined, selectedAccountId)]);
     setKeys(k); setCerts(c);
     
     const u: Record<string, boolean> = {};
@@ -51,7 +90,7 @@ export function useSettingsLogic() {
     }
     setUnlocked(u);
     setPersisted(p);
-  }, []);
+  }, [selectedAccountId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
@@ -744,6 +783,9 @@ export function useSettingsLogic() {
   }
 
   return {
+    accounts,
+    selectedAccountId,
+    selectAccount,
     keys, certs, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
     searchEmail, setSearchEmail, gen, setGen,

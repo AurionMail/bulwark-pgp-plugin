@@ -7,7 +7,7 @@
  * - local index:      decrypted mail previews + tokens (volatile, cleared on logout)
  */
 import host from '@plugin-host';
-import { base64ToBuffer, bufferToBase64 } from "./util.ts";
+import { base64ToBuffer, bufferToBase64, getCurrentAccountId } from "./util.ts";
 
 const DB_NAME = 'pgp-plugin-store';
 const DB_VERSION = 8;
@@ -83,6 +83,7 @@ export interface SessionKeysEntry {
 
 export interface EncryptedMessageCache {
   id: string;
+  keyRecordId: string; // ID of the KeyRecord used for encryption
   encryptedPayload: Uint8Array; // = { preview, tokens } AES encrypted
   iv: Uint8Array;
 }
@@ -200,11 +201,15 @@ export async function savePublicCert(cert: PublicCert): Promise<void> {
   await txPromise<IDBValidKey>(db, PUBLIC_CERTS_STORE, 'readwrite', (s) => s.put(cert));
 }
 
-export async function listPublicCerts(email?: string): Promise<PublicCert[]> {
+export async function listPublicCerts(email?: string, accountId?: string): Promise<PublicCert[]> {
   const db = await openDB();
   const all = await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll());
-  if (!email) return all;
-  return all.filter((c) => c.email === email || !c.email);
+  if (!email && !accountId) return all;
+  return all.filter((c) => {
+    if (email && c.email === email) return true;
+    if (accountId && c.accountId === accountId) return true;
+    return false;
+  });
 }
 
 export async function deletePublicCert(id: string): Promise<void> {
@@ -231,7 +236,9 @@ export async function setDefaultKeyRecord(targetId: string, isChecked: boolean):
 
 export async function getDefaultPublicKeyForEncryption(): Promise<string | undefined> {
   const db = await openDB();
-  const allKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  const accountId = await getCurrentAccountId();
+  let allKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  allKeys = allKeys.filter((k) => k.accountId === accountId);
   const defaultPrivateKey = allKeys.find((k) => k.default === true);
   
   if (defaultPrivateKey) {
@@ -412,6 +419,7 @@ export async function exportPluginData(): Promise<void> {
 
     const serializedCache = rawCache.map(item => ({
       id: item.id,
+      keyRecordId: item.keyRecordId,
       encryptedPayload: bufferToBase64(item.encryptedPayload),
       iv: bufferToBase64(item.iv)
     }));
@@ -479,6 +487,7 @@ export async function importPluginData(jsonContent: string): Promise<void> {
       if (rawPayload && rawIv) {
         const restoredCache: EncryptedMessageCache = {
           id: item.id,
+          keyRecordId: item.keyRecordId, // Preserve the keyRecordId if available
           encryptedPayload: new Uint8Array(rawPayload),
           iv: new Uint8Array(rawIv)
         };
