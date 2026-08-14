@@ -16,7 +16,7 @@ export async function askForDefaultKeyPass(type: 'default' | 'all'): Promise<voi
 
     const result = await host.ui.prompt({
       title: host.i18n.t('prompt.unlock_default_key.title'),
-      message: host.i18n.t('prompt.unlock_default_key.message'),
+      message: host.i18n.t('prompt.unlock_default_key.message') + ' ' + defaultKey.email,
       fields: [{ 
         name: 'passphrase', 
         label: host.i18n.t('prompt.unlock_default_key.passphrase_label'), 
