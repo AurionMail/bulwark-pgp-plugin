@@ -106,6 +106,7 @@ function openDB(): Promise<IDBDatabase> {
     
     request.onupgradeneeded = () => {
       const db = request.result;
+      const transaction = request.transaction!;
       
       if (!db.objectStoreNames.contains(KEY_RECORDS_STORE)) {
         const keyStore = db.createObjectStore(KEY_RECORDS_STORE, { keyPath: 'id' });
@@ -121,10 +122,17 @@ function openDB(): Promise<IDBDatabase> {
         db.createObjectStore(SESSION_KEYS_STORE, { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains(MESSAGE_CACHE_STORE)) {
-        db.createObjectStore(MESSAGE_CACHE_STORE, { keyPath: 'id' });
+        const store = db.createObjectStore(MESSAGE_CACHE_STORE, { keyPath: 'id' });
+        store.createIndex('keyRecordId', 'keyRecordId', { unique: false });
       }
-       if (!db.objectStoreNames.contains(RECIPIENTS_STORE)) {
-        db.createObjectStore(RECIPIENTS_STORE, { keyPath: 'email' });
+      let messageStore: IDBObjectStore;
+      if (!db.objectStoreNames.contains(MESSAGE_CACHE_STORE)) {
+        messageStore = db.createObjectStore(MESSAGE_CACHE_STORE, { keyPath: 'id' });
+      } else {
+        messageStore = transaction.objectStore(MESSAGE_CACHE_STORE);
+      }
+      if (!messageStore.indexNames.contains('keyRecordId')) {
+        messageStore.createIndex('keyRecordId', 'keyRecordId', { unique: false });
       }
       if (!db.objectStoreNames.contains(DANGEROUS_KEYS_STORE)) {
         db.createObjectStore(DANGEROUS_KEYS_STORE);
@@ -177,12 +185,12 @@ export async function listKeyRecords(accountId?: string): Promise<KeyRecord[]> {
   return all.filter((r) => r.accountId === accountId || !r.accountId);
 }
 
-export async function getDefaultKeyRecord(): Promise<KeyRecord |undefined>{
+export async function getDefaultKeyRecord(accountId?: string): Promise<KeyRecord |undefined>{
   
   const db = await openDB();
   let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
-  const accountId = await getCurrentAccountId();
-  all = all.filter((k) => k.accountId === accountId);
+  const Id = accountId || await getCurrentAccountId();
+  all = all.filter((k) => k.accountId === Id);
 
   return all.find((r) => r.default === true);
 }
@@ -198,9 +206,13 @@ export async function deleteKeyRecord(id: string): Promise<void> {
   await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(id));
 }
 
-export async function deleteAllKeyRecords(): Promise<void> {
+export async function deleteAllKeyRecords(accountId?: string): Promise<void> {
   const db = await openDB();
-  await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.clear());
+  let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  if (accountId && accountId !== 'all') {
+    all = all.filter((k) => k.accountId === accountId);
+  }
+  await Promise.all(all.map((k) => txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(k.id))));
 }
 
 // ── Public Keys (Contacts) CRUD ─────────────────────────────────────
@@ -299,9 +311,30 @@ export async function getMessageCacheBatch(ids: string[]): Promise<Record<string
   return results;
 }
 
-export async function clearAllMessageCache(): Promise<void> {
+export async function clearAllMessageCache(accountId?: string): Promise<void> {
   const db = await openDB();
-  await txPromise<undefined>(db, MESSAGE_CACHE_STORE, 'readwrite', (s) => s.clear());
+
+  if (accountId && accountId !== 'all') {
+    const defaultKeyId = await getDefaultKeyRecord(accountId);
+    if (defaultKeyId) {
+      await txPromise(db, MESSAGE_CACHE_STORE, 'readwrite', (s) => {
+        const index = s.index('keyRecordId');
+        const request = index.openCursor(IDBKeyRange.only(defaultKeyId));
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+            cursor.delete();
+            cursor.continue();
+          }
+        };
+
+        return request;
+      });
+    }
+  } else {
+    await txPromise<undefined>(db, MESSAGE_CACHE_STORE, 'readwrite', (s) => s.clear());
+  }
 }
 // ── Dangerous Session Key Storage ───────────────────────────────────────
 
@@ -385,7 +418,18 @@ export async function loadDangerousPassphrases(): Promise<Record<string, string>
   return passphrasesMap;
 }
 
-export async function clearDangerousStorage(): Promise<void> {
+export async function clearDangerousStorage(accountId?: string): Promise<void> {
+  if (accountId && accountId !== 'all') {
+    const keys = await listKeyRecords(accountId);
+    // get the ids of the keys for this account
+    const keyIds = keys.map(k => k.id);
+    const db = await openDB();
+    await Promise.all(keyIds.map(id => 
+      txPromise<undefined>(db, DANGEROUS_KEYS_STORE, 'readwrite', (s) => s.delete(id))
+    ));
+    return;
+  }
+
   const db = await openDB();
   await txPromise<undefined>(
     db, 
