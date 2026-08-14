@@ -264,6 +264,7 @@ const {
         jsonFileRef={jsonFileRef}
         onExportJSON={handleExportJSON}
         onImportJSON={handleImportJSON}
+        accountId={selectedAccountId}
       />
     </div>
   );

@@ -597,9 +597,10 @@ export function useSettingsLogic() {
 }
 
   async function handleExportJSON() {
+    const accountId = selectedAccountId;
     setBusy(true);
     try {
-      await exportPluginData();
+      await exportPluginData(accountId);
       host.toast.success(host.i18n.t('settings.success.json_exported'));
     } catch (err: any) {
       host.toast.error(host.i18n.t('settings.error.json_export_failed', { message: err.message }));
@@ -609,6 +610,7 @@ export function useSettingsLogic() {
   }
 
   async function handleImportJSON() {
+    const accountId = selectedAccountId;
     const file = jsonFileRef.current && jsonFileRef.current.files && jsonFileRef.current.files[0];
     if (!file) return;
 
@@ -626,7 +628,7 @@ export function useSettingsLogic() {
     setBusy(true);
     try {
       const text = new TextDecoder().decode(await file.arrayBuffer());
-      await importPluginData(text);
+      await importPluginData(text, accountId);
       host.toast.success(host.i18n.t('settings.success.json_imported'));
       await refresh();
     } catch (err: any) {
