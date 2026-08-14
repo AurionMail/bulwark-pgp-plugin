@@ -528,7 +528,8 @@ export function useSettingsLogic() {
   setBusy(true);
   try {
     await Promise.all(
-      keys.map(async (k) => {
+      keys.filter(k => k.accountId === targetKey.accountId)
+      .map(async (k) => {
         const isCurrent = k.id === targetKey.id;
         
         const updatedKey = {
