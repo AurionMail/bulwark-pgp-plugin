@@ -783,6 +783,23 @@ export function useSettingsLogic() {
     }
   }
 
+  async function handleDownloadKey(c: PublicCert)  {
+    try {
+      const armored = c.publicKey; 
+      if (!armored) throw new Error(host.i18n.t('settings.error.no_armored_key'));
+
+      host.ui.downloadFile({
+        filename: `public_key_${c.email}.asc`, 
+        content: armored, 
+        contentType: 'application/pgp-keys'
+      });
+      host.toast.success(host.i18n.t('settings.success.key_downloaded', { email: c.email }));
+    } catch (err) {
+      const error = err as Error;
+      host.toast.error(host.i18n.t('settings.error.download_failed', { message: error?.message ? error.message : String(err) }));
+    }
+  }
+
   return {
     accounts,
     selectedAccountId,
@@ -807,6 +824,7 @@ export function useSettingsLogic() {
     handleSetServerSideEncryption,
     handleExportJSON,
     handleImportJSON,
-    changePass
+    changePass,
+    handleDownloadKey
   };
 }

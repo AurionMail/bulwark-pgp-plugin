@@ -33,7 +33,8 @@ const {
     handleSetServerSideEncryption,
     handleExportJSON,
     handleImportJSON,
-    changePass
+    changePass,
+    handleDownloadKey
   } = useSettingsLogic();
 
   if (keys.length === 0) {
@@ -255,6 +256,7 @@ const {
         onSearchAndImportKey={handleSearchAndImportKey}
         selectedAccountId={selectedAccountId}
         accounts={accounts}
+        onDownloadKey={handleDownloadKey}
       />
 
       <BackupSection

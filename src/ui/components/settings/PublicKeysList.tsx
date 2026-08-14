@@ -16,6 +16,7 @@ interface PublicKeysSectionProps {
   onSearchAndImportKey: (e?: React.FormEvent) => void;
   selectedAccountId: string | undefined;
   accounts: AccountEntry[]; // Replace 'any[]' with the actual type for accounts
+  onDownloadKey: (c: PublicCert) => void;
 }
 
 export function PublicKeysSection({
@@ -30,6 +31,7 @@ export function PublicKeysSection({
   onSearchAndImportKey,
   selectedAccountId,
   accounts,
+  onDownloadKey,
 }: PublicKeysSectionProps) {
   return (
     <div>
@@ -76,6 +78,7 @@ export function PublicKeysSection({
               </div>
 
               {/* Action : Supprimer (si clé externe) ou Publier (si clé interne) */}
+              <div style={{ display: 'flex', gap: '6px', alignItems: 'flex-start' }}>
               {c.source !== 'private-key' ? (
                 <button
                   type="button"
@@ -130,6 +133,32 @@ export function PublicKeysSection({
                   </svg>
                 </button>
               )}
+              <button
+                  type="button"
+                  className="lock-btn"
+                  style={{ ...btn, color: 'var(--color-foreground)' }}
+                  title={host.i18n.t('settings.action.upload')}
+                  disabled={busy}
+                  onClick={() => onDownloadKey(c)}
+                >
+                 <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="16px"
+                  height="16px"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                >
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+              </button>
+            </div>
+
             </div>
           )})}
         </div>
