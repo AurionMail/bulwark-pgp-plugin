@@ -178,8 +178,11 @@ export async function listKeyRecords(accountId?: string): Promise<KeyRecord[]> {
 }
 
 export async function getDefaultKeyRecord(): Promise<KeyRecord |undefined>{
+  
   const db = await openDB();
-  const all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  const accountId = await getCurrentAccountId();
+  all = all.filter((k) => k.accountId === accountId);
 
   return all.find((r) => r.default === true);
 }
@@ -219,8 +222,11 @@ export async function deletePublicCert(id: string): Promise<void> {
 
 export async function setDefaultKeyRecord(targetId: string, isChecked: boolean): Promise<void> {
   const db = await openDB();
-  const all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
-  
+  let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  // default property is now per account, so filter by current accountId
+  const accountId = await getCurrentAccountId();
+  all = all.filter((k) => k.accountId === accountId);
+
   await Promise.all(
     all.map((k) => {
       const isCurrent = k.id === targetId;
