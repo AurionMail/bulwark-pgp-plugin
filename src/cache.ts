@@ -23,9 +23,11 @@ export async function deriveAesKeyFromPgpParams(passphrase: string, salt: ArrayB
   );
 }
 
-export async function getIndex(aesKey: CryptoKey, passphrase: string, record: KeyRecord): Promise<void> {
+export async function getIndex(aesKey: CryptoKey, record: KeyRecord): Promise<void> {
       try {
-        const allEncryptedCache = await getAllMessageCache();
+        let allEncryptedCache = await getAllMessageCache();
+        allEncryptedCache = allEncryptedCache.filter((item) => item.keyRecordId === record.id);
+
         const decryptedIndexMemory: Record<string, DecryptedCachePayload> = {};
         await Promise.all(
           allEncryptedCache.map(async (item) => {
@@ -66,6 +68,7 @@ function tokenizeText(text: string): string[] {
 }
 
 export async function indexAndPersistDecryptedMail(
+  accountId: string | undefined,
   mailId: string, 
   clearText: string
 ): Promise<void> {
@@ -74,7 +77,10 @@ export async function indexAndPersistDecryptedMail(
   if(!await getMessageCache(mailId)){
 
     try {
-      const allKeys = await listKeyRecords();
+      let allKeys = await listKeyRecords();
+      if(accountId){
+        allKeys = allKeys.filter((k) => k.accountId === accountId);
+      }
       const defaultKey = allKeys.find((k) => k.default === true);
 
       if (!defaultKey) {
@@ -103,6 +109,7 @@ export async function indexAndPersistDecryptedMail(
 
       const encryptedRecord: EncryptedMessageCache = {
         id: mailId,
+        keyRecordId: defaultKey.id,
         encryptedPayload: new Uint8Array(encryptedPayload),
         iv: iv
       };

@@ -56,7 +56,7 @@ export async function pgpDecrypt(input: {
       });
       return { 
         mimeBytes: decryptedBytes, 
-        keyRecordId: keyRecord.id,
+        keyRecordAccountId: keyRecord.accountId,
         signatures: signatures 
       };
     } catch (e) {

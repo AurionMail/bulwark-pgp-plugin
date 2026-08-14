@@ -7,6 +7,7 @@ interface BackupSectionProps {
   jsonFileRef: RefObject<HTMLInputElement | null>;
   onExportJSON: () => void;
   onImportJSON: () => void;
+  accountId: string | undefined;
 }
 
 export function BackupSection({
@@ -14,6 +15,7 @@ export function BackupSection({
   jsonFileRef,
   onExportJSON,
   onImportJSON,
+  accountId,
 }: BackupSectionProps) {
   return (
     <div style={{ borderTop: '1px solid var(--color-border, #e2e8f0)', paddingTop: '16px', marginTop: '8px' }}>
@@ -48,7 +50,7 @@ export function BackupSection({
             <polyline points="7 10 12 15 17 10" />
             <line x1="12" y1="15" x2="12" y2="3" />
           </svg>
-          {host.i18n.t('settings.export_json')}
+          {accountId ? host.i18n.t('settings.export_json_account') : host.i18n.t('settings.export_json')}
         </button>
 
         <input
@@ -82,7 +84,7 @@ export function BackupSection({
             <polyline points="17 8 12 3 7 8" />
             <line x1="12" y1="3" x2="12" y2="15" />
           </svg>
-          {host.i18n.t('settings.import_json')}
+          {accountId ? host.i18n.t('settings.import_json_account') : host.i18n.t('settings.import_json')}
         </button>
       </div>
     </div>

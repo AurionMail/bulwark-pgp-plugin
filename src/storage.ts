@@ -7,10 +7,10 @@
  * - local index:      decrypted mail previews + tokens (volatile, cleared on logout)
  */
 import host from '@plugin-host';
-import { base64ToBuffer, bufferToBase64 } from "./util.ts";
+import { base64ToBuffer, bufferToBase64, getCurrentAccountId } from "./util.ts";
 
 const DB_NAME = 'pgp-plugin-store';
-const DB_VERSION = 8;
+const DB_VERSION = 10;
 const KEY_RECORDS_STORE = 'key-records';
 const PUBLIC_CERTS_STORE = 'public-certs';
 const SESSION_KEYS_STORE = 'session-keys';
@@ -83,6 +83,7 @@ export interface SessionKeysEntry {
 
 export interface EncryptedMessageCache {
   id: string;
+  keyRecordId: string; // ID of the KeyRecord used for encryption
   encryptedPayload: Uint8Array; // = { preview, tokens } AES encrypted
   iv: Uint8Array;
 }
@@ -105,6 +106,7 @@ function openDB(): Promise<IDBDatabase> {
     
     request.onupgradeneeded = () => {
       const db = request.result;
+      const transaction = request.transaction!;
       
       if (!db.objectStoreNames.contains(KEY_RECORDS_STORE)) {
         const keyStore = db.createObjectStore(KEY_RECORDS_STORE, { keyPath: 'id' });
@@ -120,10 +122,17 @@ function openDB(): Promise<IDBDatabase> {
         db.createObjectStore(SESSION_KEYS_STORE, { keyPath: 'id' });
       }
       if (!db.objectStoreNames.contains(MESSAGE_CACHE_STORE)) {
-        db.createObjectStore(MESSAGE_CACHE_STORE, { keyPath: 'id' });
+        const store = db.createObjectStore(MESSAGE_CACHE_STORE, { keyPath: 'id' });
+        store.createIndex('keyRecordId', 'keyRecordId', { unique: false });
       }
-       if (!db.objectStoreNames.contains(RECIPIENTS_STORE)) {
-        db.createObjectStore(RECIPIENTS_STORE, { keyPath: 'email' });
+      let messageStore: IDBObjectStore;
+      if (!db.objectStoreNames.contains(MESSAGE_CACHE_STORE)) {
+        messageStore = db.createObjectStore(MESSAGE_CACHE_STORE, { keyPath: 'id' });
+      } else {
+        messageStore = transaction.objectStore(MESSAGE_CACHE_STORE);
+      }
+      if (!messageStore.indexNames.contains('keyRecordId')) {
+        messageStore.createIndex('keyRecordId', 'keyRecordId', { unique: false });
       }
       if (!db.objectStoreNames.contains(DANGEROUS_KEYS_STORE)) {
         db.createObjectStore(DANGEROUS_KEYS_STORE);
@@ -176,11 +185,20 @@ export async function listKeyRecords(accountId?: string): Promise<KeyRecord[]> {
   return all.filter((r) => r.accountId === accountId || !r.accountId);
 }
 
-export async function getDefaultKeyRecord(): Promise<KeyRecord |undefined>{
+export async function getDefaultKeyRecord(accountId?: string): Promise<KeyRecord |undefined>{
+  
   const db = await openDB();
-  const all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  const Id = accountId || await getCurrentAccountId();
+  all = all.filter((k) => k.accountId === Id);
 
   return all.find((r) => r.default === true);
+}
+
+export async function getAllDefaultKeyRecords(): Promise<KeyRecord[]> {
+  const db = await openDB();
+  let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  return all.filter((r) => r.default === true);
 }
 
 export async function deleteKeyRecord(id: string): Promise<void> {
@@ -188,9 +206,13 @@ export async function deleteKeyRecord(id: string): Promise<void> {
   await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(id));
 }
 
-export async function deleteAllKeyRecords(): Promise<void> {
+export async function deleteAllKeyRecords(accountId?: string): Promise<void> {
   const db = await openDB();
-  await txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.clear());
+  let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  if (accountId && accountId !== 'all') {
+    all = all.filter((k) => k.accountId === accountId);
+  }
+  await Promise.all(all.map((k) => txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(k.id))));
 }
 
 // ── Public Keys (Contacts) CRUD ─────────────────────────────────────
@@ -200,11 +222,15 @@ export async function savePublicCert(cert: PublicCert): Promise<void> {
   await txPromise<IDBValidKey>(db, PUBLIC_CERTS_STORE, 'readwrite', (s) => s.put(cert));
 }
 
-export async function listPublicCerts(email?: string): Promise<PublicCert[]> {
+export async function listPublicCerts(email?: string, accountId?: string): Promise<PublicCert[]> {
   const db = await openDB();
   const all = await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll());
-  if (!email) return all;
-  return all.filter((c) => c.email === email || !c.email);
+  if (!email && !accountId) return all;
+  return all.filter((c) => {
+    if (email && c.email === email) return true;
+    if (accountId && c.accountId === accountId) return true;
+    return false;
+  });
 }
 
 export async function deletePublicCert(id: string): Promise<void> {
@@ -214,8 +240,11 @@ export async function deletePublicCert(id: string): Promise<void> {
 
 export async function setDefaultKeyRecord(targetId: string, isChecked: boolean): Promise<void> {
   const db = await openDB();
-  const all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
-  
+  let all = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  // default property is now per account, so filter by current accountId
+  const accountId = await getCurrentAccountId();
+  all = all.filter((k) => k.accountId === accountId);
+
   await Promise.all(
     all.map((k) => {
       const isCurrent = k.id === targetId;
@@ -231,7 +260,9 @@ export async function setDefaultKeyRecord(targetId: string, isChecked: boolean):
 
 export async function getDefaultPublicKeyForEncryption(): Promise<string | undefined> {
   const db = await openDB();
-  const allKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  const accountId = await getCurrentAccountId();
+  let allKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+  allKeys = allKeys.filter((k) => k.accountId === accountId);
   const defaultPrivateKey = allKeys.find((k) => k.default === true);
   
   if (defaultPrivateKey) {
@@ -280,9 +311,30 @@ export async function getMessageCacheBatch(ids: string[]): Promise<Record<string
   return results;
 }
 
-export async function clearAllMessageCache(): Promise<void> {
+export async function clearAllMessageCache(accountId?: string): Promise<void> {
   const db = await openDB();
-  await txPromise<undefined>(db, MESSAGE_CACHE_STORE, 'readwrite', (s) => s.clear());
+
+  if (accountId && accountId !== 'all') {
+    const defaultKeyId = await getDefaultKeyRecord(accountId);
+    if (defaultKeyId) {
+      await txPromise(db, MESSAGE_CACHE_STORE, 'readwrite', (s) => {
+        const index = s.index('keyRecordId');
+        const request = index.openCursor(IDBKeyRange.only(defaultKeyId));
+
+        request.onsuccess = () => {
+          const cursor = request.result;
+          if (cursor) {
+            cursor.delete();
+            cursor.continue();
+          }
+        };
+
+        return request;
+      });
+    }
+  } else {
+    await txPromise<undefined>(db, MESSAGE_CACHE_STORE, 'readwrite', (s) => s.clear());
+  }
 }
 // ── Dangerous Session Key Storage ───────────────────────────────────────
 
@@ -366,7 +418,18 @@ export async function loadDangerousPassphrases(): Promise<Record<string, string>
   return passphrasesMap;
 }
 
-export async function clearDangerousStorage(): Promise<void> {
+export async function clearDangerousStorage(accountId?: string): Promise<void> {
+  if (accountId && accountId !== 'all') {
+    const keys = await listKeyRecords(accountId);
+    // get the ids of the keys for this account
+    const keyIds = keys.map(k => k.id);
+    const db = await openDB();
+    await Promise.all(keyIds.map(id => 
+      txPromise<undefined>(db, DANGEROUS_KEYS_STORE, 'readwrite', (s) => s.delete(id))
+    ));
+    return;
+  }
+
   const db = await openDB();
   await txPromise<undefined>(
     db, 
@@ -389,13 +452,24 @@ export async function getRecipient(email: string): Promise<Recipient | undefined
 
 //------------------ Export / Import Plugin Data -----------------------------
 
-export async function exportPluginData(): Promise<void> {
+export async function exportPluginData(accountId?: string): Promise<void> {
   try {
     const db = await openDB();
-    
-    const rawKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
-    const rawCerts = await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll());
-    const rawCache = await txPromise<EncryptedMessageCache[]>(db, MESSAGE_CACHE_STORE, 'readonly', (s) => s.getAll());
+    let rawKeys: KeyRecord[];
+    let rawCerts: PublicCert[];
+    let rawCache: EncryptedMessageCache[];
+    if(accountId){
+        rawKeys = (await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll())).filter((k) => k.accountId === accountId);
+        rawCerts = (await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll())).filter((c) => c.accountId === accountId);
+        rawCache = (await txPromise<EncryptedMessageCache[]>(db, MESSAGE_CACHE_STORE, 'readonly', (s) => s.getAll())).filter((m) => {
+          const keyRecord = rawKeys.find((k) => k.id === m.keyRecordId);
+          return keyRecord !== undefined;
+        });
+    }else{
+      rawKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
+      rawCerts = await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll());
+      rawCache = await txPromise<EncryptedMessageCache[]>(db, MESSAGE_CACHE_STORE, 'readonly', (s) => s.getAll());
+    }
 
     const serializedKeys = rawKeys.map(key => ({
       ...key,
@@ -412,6 +486,7 @@ export async function exportPluginData(): Promise<void> {
 
     const serializedCache = rawCache.map(item => ({
       id: item.id,
+      keyRecordId: item.keyRecordId,
       encryptedPayload: bufferToBase64(item.encryptedPayload),
       iv: bufferToBase64(item.iv)
     }));
@@ -428,7 +503,7 @@ export async function exportPluginData(): Promise<void> {
     const jsonString = JSON.stringify(backupPackage, null, 2);
     await host.ui.downloadFile({
       content: jsonString,
-      filename: `pgp_plugin_backup_${new Date().toISOString().split('T')[0]}.json`,
+      filename: accountId ? `pgp_plugin_backup_${accountId}_${new Date().toISOString().split('T')[0]}.json` : `pgp_plugin_backup_${new Date().toISOString().split('T')[0]}.json`,
       contentType: 'application/json'
     });
 
@@ -437,17 +512,24 @@ export async function exportPluginData(): Promise<void> {
   }
 }
 
-export async function importPluginData(jsonContent: string): Promise<void> {
+export async function importPluginData(jsonContent: string, accountId?: string): Promise<void> {
   try {
     const backup = JSON.parse(jsonContent);
     if (backup.format !== "openpgp-plugin-backup" || !backup.keys || !backup.certs || !backup.messageCache) {
-      throw new Error("Fichier de sauvegarde invalide ou corrompu.");
+      throw new Error("Invalid backup file. There is no keys, certs or message cache in the backup file.");
     }
 
     const db = await openDB();
+
+    const keysToImport = accountId 
+      ? backup.keys.filter((key: any) => key.accountId === accountId)
+      : backup.keys;
+
+    const allowedKeyIds = new Set<string>(keysToImport.map((k: any) => k.id));
+
     const txKeys = db.transaction(KEY_RECORDS_STORE, 'readwrite');
     const storeKeys = txKeys.objectStore(KEY_RECORDS_STORE);
-    for (const key of backup.keys) {
+    for (const key of keysToImport) {
       const restoredKey: KeyRecord = {
         ...key,
         encryptedPrivateKey: base64ToBuffer(key.encryptedPrivateKey) as ArrayBuffer,
@@ -463,22 +545,30 @@ export async function importPluginData(jsonContent: string): Promise<void> {
       storeKeys.put(restoredKey);
     }
 
+    const certsToImport = accountId
+      ? backup.certs.filter((cert: any) => cert.accountId === accountId)
+      : backup.certs;
+
     const txCerts = db.transaction(PUBLIC_CERTS_STORE, 'readwrite');
     const storeCerts = txCerts.objectStore(PUBLIC_CERTS_STORE);
-    for (const cert of backup.certs) {
+    for (const cert of certsToImport) {
       storeCerts.put(cert);
     }
 
+    const cacheToImport = accountId
+      ? backup.messageCache.filter((item: any) => allowedKeyIds.has(item.keyRecordId))
+      : backup.messageCache;
+
     const txCache = db.transaction(MESSAGE_CACHE_STORE, 'readwrite');
     const storeCache = txCache.objectStore(MESSAGE_CACHE_STORE);
-    for (const item of backup.messageCache) {
-
+    for (const item of cacheToImport) {
       const rawPayload = base64ToBuffer(item.encryptedPayload);
       const rawIv = base64ToBuffer(item.iv);
 
       if (rawPayload && rawIv) {
         const restoredCache: EncryptedMessageCache = {
           id: item.id,
+          keyRecordId: item.keyRecordId,
           encryptedPayload: new Uint8Array(rawPayload),
           iv: new Uint8Array(rawIv)
         };

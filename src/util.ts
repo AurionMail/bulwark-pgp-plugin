@@ -1,4 +1,5 @@
 import * as openpgp from 'openpgp';
+import host from '@plugin-host';
 import { listKeyRecords } from './storage.ts';
 import { fetchKeyFromBackground } from './pgp/session-broadcast.ts';
 // Small browser helpers shared across the S/MIME plugin modules.
@@ -330,7 +331,7 @@ export interface Identity {
 }
 
 export interface AccountEntry {
-  id: string;
+  id: string;/** Unique key: `${username}@${serverHostname}` */
   label: string;
   serverUrl: string;
   username: string;
@@ -339,6 +340,16 @@ export interface AccountEntry {
   avatarColor: string;
   isConnected: boolean;
   isDefault: boolean;
+  isActive: boolean;
+}
+
+export async function getCurrentAccountId(): Promise<string | undefined> {
+  const accounts = await host.user.getAccounts();
+  const currentAccount = accounts.find(account => account.isActive);
+  if(!currentAccount) {
+    host.log.warn('No connected account found. Returning undefined for current account ID.');
+  }
+  return currentAccount ? currentAccount.id : undefined;
 }
 
 export interface PublicKeyInfo {

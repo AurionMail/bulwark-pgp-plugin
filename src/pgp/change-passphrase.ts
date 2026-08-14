@@ -35,7 +35,7 @@ export async function changePassword(keyID: string, oldPassphrase: string, newPa
     await saveKeyRecord(updatedRecord);
     const unlockedSession = await unlockPrivateKey(updatedRecord, newPassphrase);
     if (updatedRecord.default && unlockedSession.aesKey) {
-      await changePassphraseForCache(unlockedSession.aesKey);
+      await changePassphraseForCache(unlockedSession.aesKey, updatedRecord.id);
     }
     broadcastUnlockKey({ 
       id: updatedRecord.id, 
@@ -56,7 +56,7 @@ export async function changePassword(keyID: string, oldPassphrase: string, newPa
   }
 }
 
-async function changePassphraseForCache(newAesKey: CryptoKey) {
+async function changePassphraseForCache(newAesKey: CryptoKey, keyRecordId: string) {
   const decryptedIndex = await fetchRamIndexFromBackground();
 
   if (!decryptedIndex || Object.keys(decryptedIndex).length === 0) {
@@ -76,6 +76,7 @@ async function changePassphraseForCache(newAesKey: CryptoKey) {
 
       return {
         id: mailId,
+        keyRecordId: keyRecordId,
         encryptedPayload: new Uint8Array(encryptedPayload),
         iv: iv
       };

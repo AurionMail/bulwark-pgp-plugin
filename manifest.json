@@ -75,10 +75,13 @@
       "default": true
     },
     "askForDefaultKeyPassOnActivated": {
-      "type": "boolean",
+      "type": "select",
       "label": "Ask for the passphrase when booting the app.",
-      "description": "Ask for the passphrase decrypting your default key when booting the app. Avoid to go to settings to manually unlock your key.",
-      "default": false
+      "description": "Ask for the passphrase to unlock your default key when booting the app, for default account or all accounts.",
+      "default": "false",
+      "options": [
+        "false", "default", "all"
+      ]
     },
     "alwaysSendPubKey": {
       "type": "boolean",
@@ -231,7 +234,9 @@
       "settings.json_backup_title": "JSON Backup",
       "settings.json_backup_desc": "Export all your OpenPGP keys and settings as a JSON file. This file is encrypted with your default key's passphrase, so keep it safe.",
       "settings.export_json": "Export to JSON",
+      "settings.export_json_account": "Export to JSON for this account",
       "settings.import_json": "Import from JSON",
+      "settings.import_json_account": "Import from JSON for this account",
       "settings.search_public_key": "Search public key",
       "settings.success.json_imported": "Plugin data imported successfully!",
       "settings.error.json_import_failed": "JSON import failed: {message}",
@@ -289,7 +294,10 @@
       "settings.persisted_badge": "Persisted",
       "settings.server_side_badge": "Used for server encryption ",
       "settings.action.options": "More options",
-      "settings.action.change_passphrase": "Change passphrase"
+      "settings.action.change_passphrase": "Change passphrase",
+      "settings.pro_mode_desc": "Display all keys (all accounts)",
+      "settings.pro_mode_title": "Pro Mode",
+      "settings.account_mode_desc": "Keys for account"
     }
   }
 }
