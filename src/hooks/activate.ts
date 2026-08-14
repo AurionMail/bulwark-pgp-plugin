@@ -31,7 +31,7 @@ export async function askForDefaultKeyPass(type: 'default' | 'all'): Promise<voi
     const unlockPassphrase = result.passphrase;
 
     try {
-      const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(defaultKey, unlockPassphrase);     
+      const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(defaultKey, unlockPassphrase);
       
       broadcastUnlockKey({ 
         id: defaultKey.id, 

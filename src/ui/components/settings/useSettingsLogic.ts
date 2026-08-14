@@ -653,8 +653,7 @@ export function useSettingsLogic() {
     try {
       const { codeFormatted, codeRaw } = generateNumericRecoveryCode();
       const { privateKey, revocationCertificate } = await openpgp.generateKey({
-        type: 'ecc',
-        curve: 'ed25519Legacy',
+        type: 'curve25519',
         userIDs: [{ name: data.name, email: data.email }],
         passphrase: data.pass,
         format: 'armored'
