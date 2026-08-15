@@ -310,7 +310,7 @@ async function handleMimeEncrypted(
   // Before creating verification, we need to know if
   // the message is E2E encrypted or just encrypted by server
   //1. Download blob of the message and check if it is encrypted by server or not
-  const rawMessage = await host.jmap.fetchBlob(ctx.blobId, { rangeHeader: 'bytes=0-1000'});
+  const rawMessage = await host.jmap.fetchBlob(ctx.blobId, { rangeHeader: 2000});
   //2. convert Uint8Array<ArrayBufferLike> to string
   const rawMessageString = new TextDecoder().decode(rawMessage);
   //3. check if the message is encrypted by server or not
