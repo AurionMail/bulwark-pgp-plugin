@@ -10,7 +10,7 @@ import host from '@plugin-host';
 import { base64ToBuffer, bufferToBase64, getCurrentAccountId } from "./util.ts";
 
 const DB_NAME = 'pgp-plugin-store';
-const DB_VERSION = 10;
+const DB_VERSION = 12;
 const KEY_RECORDS_STORE = 'key-records';
 const PUBLIC_CERTS_STORE = 'public-certs';
 const SESSION_KEYS_STORE = 'session-keys';
@@ -18,9 +18,15 @@ const MESSAGE_CACHE_STORE = 'message-cache';
 const RECIPIENTS_STORE = 'recipients-cache'; 
 const DANGEROUS_KEYS_STORE = 'dangerous-keys';
 const DANGEROUS_MASTER_KEY_STORE = 'dangerous-master-key';
+const MIGRATIONS_STORE = 'migrations';
 
 // ── Interfaces ──────────────────────────────────────
 
+export interface DbMigration {
+  version: number;
+  appliedAt: string;
+  description?: string;
+}
 export interface KeyRecord {
   id: string;
   email: string;
@@ -140,6 +146,9 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(DANGEROUS_MASTER_KEY_STORE)) {
         db.createObjectStore(DANGEROUS_MASTER_KEY_STORE);
       }
+      if (!db.objectStoreNames.contains(MIGRATIONS_STORE)) {
+        db.createObjectStore(MIGRATIONS_STORE, { keyPath: 'version' });
+      }
     };
     
     request.onsuccess = () => resolve(request.result);
@@ -164,6 +173,30 @@ function txPromise<T>(
     req.onsuccess = () => resolve(req.result as T);
     req.onerror = () => reject(req.error);
   });
+}
+
+// ── Migrations Store ───────────────────────────────────────
+export async function recordMigration(version: number, description?: string): Promise<void> {
+  const db = await openDB();
+  const entry: DbMigration = {
+    version,
+    appliedAt: new Date().toISOString(),
+    description,
+  };
+  await txPromise<IDBValidKey>(db, MIGRATIONS_STORE, 'readwrite', (s) => s.put(entry));
+}
+
+export async function getCurrentDbVersion(): Promise<number> {
+  const db = await openDB();
+  const records = await txPromise<DbMigration[]>(db, MIGRATIONS_STORE, 'readonly', (s) => s.getAll());
+  if (records.length === 0) return 0;
+  return Math.max(...records.map((r) => r.version));
+}
+
+export async function getMigrationHistory(): Promise<DbMigration[]> {
+  const db = await openDB();
+  const records = await txPromise<DbMigration[]>(db, MIGRATIONS_STORE, 'readonly', (s) => s.getAll());
+  return records.sort((a, b) => a.version - b.version);
 }
 
 // ── Private Key Records CRUD ────────────────────────────────────────
@@ -458,17 +491,22 @@ export async function exportPluginData(accountId?: string): Promise<void> {
     let rawKeys: KeyRecord[];
     let rawCerts: PublicCert[];
     let rawCache: EncryptedMessageCache[];
-    if(accountId){
-        rawKeys = (await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll())).filter((k) => k.accountId === accountId);
-        rawCerts = (await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll())).filter((c) => c.accountId === accountId);
-        rawCache = (await txPromise<EncryptedMessageCache[]>(db, MESSAGE_CACHE_STORE, 'readonly', (s) => s.getAll())).filter((m) => {
-          const keyRecord = rawKeys.find((k) => k.id === m.keyRecordId);
-          return keyRecord !== undefined;
-        });
-    }else{
+    let rawMigrations: DbMigration[] = [];
+
+    if (accountId) {
+      rawKeys = (await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll())).filter((k) => k.accountId === accountId);
+      rawCerts = (await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll())).filter((c) => c.accountId === accountId);
+      rawCache = (await txPromise<EncryptedMessageCache[]>(db, MESSAGE_CACHE_STORE, 'readonly', (s) => s.getAll())).filter((m) => {
+        return rawKeys.some((k) => k.id === m.keyRecordId);
+      });
+    } else {
       rawKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
       rawCerts = await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll());
       rawCache = await txPromise<EncryptedMessageCache[]>(db, MESSAGE_CACHE_STORE, 'readonly', (s) => s.getAll());
+    }
+
+    if (db.objectStoreNames.contains(MIGRATIONS_STORE)) {
+      rawMigrations = await txPromise<DbMigration[]>(db, MIGRATIONS_STORE, 'readonly', (s) => s.getAll());
     }
 
     const serializedKeys = rawKeys.map(key => ({
@@ -476,7 +514,7 @@ export async function exportPluginData(accountId?: string): Promise<void> {
       encryptedPrivateKey: bufferToBase64(key.encryptedPrivateKey),
       salt: bufferToBase64(key.salt),
       iv: bufferToBase64(key.iv),
-      aesSalt: bufferToBase64(key.aesSalt),
+      aesSalt: key.aesSalt ? bufferToBase64(key.aesSalt) : undefined,
       webauthn: key.webauthn ? {
         credentialId: bufferToBase64(key.webauthn.credentialId),
         encryptedPassphrase: bufferToBase64(key.webauthn.encryptedPassphrase),
@@ -497,7 +535,8 @@ export async function exportPluginData(accountId?: string): Promise<void> {
       createdAt: new Date().toISOString(),
       keys: serializedKeys,
       certs: rawCerts,
-      messageCache: serializedCache
+      messageCache: serializedCache,
+      migrations: rawMigrations
     };
 
     const jsonString = JSON.stringify(backupPackage, null, 2);
@@ -508,7 +547,7 @@ export async function exportPluginData(accountId?: string): Promise<void> {
     });
 
   } catch (error) {
-    throw new Error("Impossible d'exporter les données.");
+    throw new Error(`Unable to export plugin data: ${(error as Error).message}`);
   }
 }
 
@@ -516,7 +555,7 @@ export async function importPluginData(jsonContent: string, accountId?: string):
   try {
     const backup = JSON.parse(jsonContent);
     if (backup.format !== "openpgp-plugin-backup" || !backup.keys || !backup.certs || !backup.messageCache) {
-      throw new Error("Invalid backup file. There is no keys, certs or message cache in the backup file.");
+      throw new Error("Invalid backup file. Missing keys, certs or message cache.");
     }
 
     const db = await openDB();
@@ -535,7 +574,7 @@ export async function importPluginData(jsonContent: string, accountId?: string):
         encryptedPrivateKey: base64ToBuffer(key.encryptedPrivateKey) as ArrayBuffer,
         salt: base64ToBuffer(key.salt) as ArrayBuffer,
         iv: base64ToBuffer(key.iv) as ArrayBuffer,
-        aesSalt: base64ToBuffer(key.aesSalt) as ArrayBuffer,
+        aesSalt: key.aesSalt ? (base64ToBuffer(key.aesSalt) as ArrayBuffer) : undefined,
         webauthn: key.webauthn ? {
           credentialId: base64ToBuffer(key.webauthn.credentialId) as ArrayBuffer,
           encryptedPassphrase: base64ToBuffer(key.webauthn.encryptedPassphrase) as ArrayBuffer,
@@ -576,18 +615,26 @@ export async function importPluginData(jsonContent: string, accountId?: string):
       }
     }
 
-    await new Promise<void>((resolve, reject) => {
-      let count = 3;
-      const done = () => { if (--count === 0) resolve(); };
-      
-      txKeys.oncomplete = done;
-      txCerts.oncomplete = done;
-      txCache.oncomplete = done;
-      
-      txKeys.onerror = () => reject(txKeys.error);
-      txCerts.onerror = () => reject(txCerts.error);
-      txCache.onerror = () => reject(txCache.error);
-    });
+    const transactionsToWait: IDBTransaction[] = [txKeys, txCerts, txCache];
+
+    if (Array.isArray(backup.migrations) && db.objectStoreNames.contains(MIGRATIONS_STORE)) {
+      const txMigrations = db.transaction(MIGRATIONS_STORE, 'readwrite');
+      const storeMigrations = txMigrations.objectStore(MIGRATIONS_STORE);
+      for (const migration of backup.migrations) {
+        storeMigrations.put(migration);
+      }
+      transactionsToWait.push(txMigrations);
+    }
+
+    await Promise.all(
+      transactionsToWait.map(
+        (tx) =>
+          new Promise<void>((resolve, reject) => {
+            tx.oncomplete = () => resolve();
+            tx.onerror = () => reject(tx.error);
+          })
+      )
+    );
 
   } catch (error) {
     throw error;
