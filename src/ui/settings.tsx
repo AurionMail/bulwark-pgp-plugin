@@ -6,9 +6,13 @@ import { BackupSection } from './components/settings/BackupSection.tsx';
 import { OnboardingFlow } from './onboarding.tsx';
 import { PrivateKeysSection } from './components/settings/PrivateKeysList.tsx';
 import { PublicKeysSection } from './components/settings/PublicKeysList.tsx';
+import { ProModeToggle } from './components/settings/AccountSelector.tsx';
 
 export function SettingsSection() {
 const {
+  accounts,
+    selectedAccountId,
+    selectAccount,
     keys, certs, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
     searchEmail, setSearchEmail, gen, setGen,
@@ -29,7 +33,8 @@ const {
     handleSetServerSideEncryption,
     handleExportJSON,
     handleImportJSON,
-    changePass
+    changePass,
+    handleDownloadKey
   } = useSettingsLogic();
 
   if (keys.length === 0) {
@@ -210,6 +215,12 @@ const {
         }
       `}</style>
 
+      <ProModeToggle
+        accounts={accounts}
+        selectedAccountId={selectedAccountId}
+        onSelectAccount={selectAccount}
+      />
+
       <PrivateKeysSection
         keys={keys}
         unlocked={unlocked}
@@ -229,6 +240,8 @@ const {
         onFileChange={handleFileChange}
         onGenerateKey={() => handleGenerateKey()}
         onChangePass={changePass}
+        accounts={accounts}
+        selectedAccountId={selectedAccountId}
       />
 
       <PublicKeysSection
@@ -241,6 +254,9 @@ const {
         onUploadKey={handleUploadKey}
         onImportCertFile={importCertFile}
         onSearchAndImportKey={handleSearchAndImportKey}
+        selectedAccountId={selectedAccountId}
+        accounts={accounts}
+        onDownloadKey={handleDownloadKey}
       />
 
       <BackupSection
@@ -248,6 +264,7 @@ const {
         jsonFileRef={jsonFileRef}
         onExportJSON={handleExportJSON}
         onImportJSON={handleImportJSON}
+        accountId={selectedAccountId}
       />
     </div>
   );

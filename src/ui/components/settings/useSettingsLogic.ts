@@ -22,7 +22,7 @@ import {
   subscribeToKeyUpdates
 } from '../../../pgp/session-broadcast.ts';
 import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
-import { bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
+import { AccountEntry, bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
 import { changePassword } from '../../../pgp/change-passphrase.ts';
 import { getMasterPass } from '../../../aurion/session-broadcast.ts';
 import { fetchCryptDriveSecret } from '../../../aurion/cryptpad/utils.ts';
@@ -32,6 +32,8 @@ import { config } from '../../../shared.ts';
 import { argon2id } from 'hash-wasm'; 
 
 export function useSettingsLogic() {
+  const [accounts, setAccounts] = useState<AccountEntry[]>([]);
+  const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
   const [keys, setKeys] = useState<KeyRecord[]>([]);
   const [certs, setCerts] = useState<PublicCert[]>([]); 
   const [unlocked, setUnlocked] = useState<Record<string, boolean>>({});
@@ -44,9 +46,46 @@ export function useSettingsLogic() {
   const [searchEmail, setSearchEmail] = useState<string>('');
   const [gen, setGen] = useState({ open: false, name: '', email: '', pass: '' });
 
+  useEffect(() => {
+    let isMounted = true;
+
+    async function loadAccounts() {
+      setBusy(true);
+      try {
+        const fetchedAccounts: AccountEntry[] = await host.user.getAccounts(); 
+        console.warn(fetchedAccounts);
+        
+        if (isMounted) {
+          setAccounts(fetchedAccounts);
+
+          const connectedAccount = fetchedAccounts.find((acc) => acc.isActive);
+          if (connectedAccount) {
+            setSelectedAccountId(connectedAccount.id);
+          } else {
+            setSelectedAccountId(undefined);
+          }
+        }
+      } catch (error) {
+        console.error("Erreur lors du chargement des comptes:", error);
+      } finally {
+        if (isMounted) setBusy(false);
+      }
+    }
+
+    void loadAccounts();
+
+    return () => {
+      isMounted = false;
+    };
+  }, []);
+
+  const selectAccount = useCallback((accountId: string | undefined) => {
+    setSelectedAccountId(accountId);
+  }, []);
   
   const refresh = useCallback(async () => {
-    const [k, c] = await Promise.all([listKeyRecords(), listPublicCerts()]);
+    console.log("Refreshing keys and certs for account:", selectedAccountId);
+    const [k, c] = await Promise.all([listKeyRecords(selectedAccountId), listPublicCerts(undefined, selectedAccountId)]);
     setKeys(k); setCerts(c);
     
     const u: Record<string, boolean> = {};
@@ -58,7 +97,7 @@ export function useSettingsLogic() {
     }
     setUnlocked(u);
     setPersisted(p);
-  }, []);
+  }, [selectedAccountId]);
 
   useEffect(() => { void refresh(); }, [refresh]);
   useEffect(() => {
@@ -496,7 +535,8 @@ export function useSettingsLogic() {
   setBusy(true);
   try {
     await Promise.all(
-      keys.map(async (k) => {
+      keys.filter(k => k.accountId === targetKey.accountId)
+      .map(async (k) => {
         const isCurrent = k.id === targetKey.id;
         
         const updatedKey = {
@@ -564,9 +604,10 @@ export function useSettingsLogic() {
 }
 
   async function handleExportJSON() {
+    const accountId = selectedAccountId;
     setBusy(true);
     try {
-      await exportPluginData();
+      await exportPluginData(accountId);
       host.toast.success(host.i18n.t('settings.success.json_exported'));
     } catch (err: any) {
       host.toast.error(host.i18n.t('settings.error.json_export_failed', { message: err.message }));
@@ -576,6 +617,7 @@ export function useSettingsLogic() {
   }
 
   async function handleImportJSON() {
+    const accountId = selectedAccountId;
     const file = jsonFileRef.current && jsonFileRef.current.files && jsonFileRef.current.files[0];
     if (!file) return;
 
@@ -593,7 +635,7 @@ export function useSettingsLogic() {
     setBusy(true);
     try {
       const text = new TextDecoder().decode(await file.arrayBuffer());
-      await importPluginData(text);
+      await importPluginData(text, accountId);
       host.toast.success(host.i18n.t('settings.success.json_imported'));
       await refresh();
     } catch (err: any) {
@@ -629,8 +671,7 @@ export function useSettingsLogic() {
           }
       const { codeFormatted, codeRaw } = generateNumericRecoveryCode();
       const { privateKey, revocationCertificate } = await openpgp.generateKey({
-        type: 'ecc',
-        curve: 'ed25519Legacy',
+        type: 'curve25519',
         userIDs: [{ name: data.name, email: data.email }],
         passphrase: data.pass,
         format: 'armored'
@@ -819,7 +860,27 @@ export function useSettingsLogic() {
     }
   }
 
+  async function handleDownloadKey(c: PublicCert)  {
+    try {
+      const armored = c.publicKey; 
+      if (!armored) throw new Error(host.i18n.t('settings.error.no_armored_key'));
+
+      host.ui.downloadFile({
+        filename: `public_key_${c.email}.asc`, 
+        content: armored, 
+        contentType: 'application/pgp-keys'
+      });
+      host.toast.success(host.i18n.t('settings.success.key_downloaded', { email: c.email }));
+    } catch (err) {
+      const error = err as Error;
+      host.toast.error(host.i18n.t('settings.error.download_failed', { message: error?.message ? error.message : String(err) }));
+    }
+  }
+
   return {
+    accounts,
+    selectedAccountId,
+    selectAccount,
     keys, certs, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
     searchEmail, setSearchEmail, gen, setGen,
@@ -840,6 +901,7 @@ export function useSettingsLogic() {
     handleSetServerSideEncryption,
     handleExportJSON,
     handleImportJSON,
-    changePass
+    changePass,
+    handleDownloadKey
   };
 }

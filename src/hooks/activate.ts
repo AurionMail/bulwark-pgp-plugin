@@ -1,15 +1,22 @@
 import { unlockPrivateKey } from "../pgp/import.ts";
 import { broadcastUnlockKey } from "../pgp/session-broadcast.ts";
-import { getDefaultKeyRecord } from "../storage.ts";
+import { getAllDefaultKeyRecords, getDefaultKeyRecord } from "../storage.ts";
 import host from '@plugin-host';
 
-export async function askForDefaultKeyPass(): Promise<void> {
-  const defaultKey = await getDefaultKeyRecord();
+export async function askForDefaultKeyPass(type: 'default' | 'all'): Promise<void> {
+  let defaultKeys;
+  if (type === 'default') {
+    defaultKeys = [await getDefaultKeyRecord()];
+  } else {
+    defaultKeys = await getAllDefaultKeyRecords();
+  }
 
-  if (defaultKey) {
+  for (const defaultKey of defaultKeys) {
+    if (!defaultKey) continue;
+
     const result = await host.ui.prompt({
       title: host.i18n.t('prompt.unlock_default_key.title'),
-      message: host.i18n.t('prompt.unlock_default_key.message'),
+      message: host.i18n.t('prompt.unlock_default_key.message') + ' ' + defaultKey.email,
       fields: [{ 
         name: 'passphrase', 
         label: host.i18n.t('prompt.unlock_default_key.passphrase_label'), 
@@ -24,7 +31,7 @@ export async function askForDefaultKeyPass(): Promise<void> {
     const unlockPassphrase = result.passphrase;
 
     try {
-      const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(defaultKey, unlockPassphrase);     
+      const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(defaultKey, unlockPassphrase);
       
       broadcastUnlockKey({ 
         id: defaultKey.id, 

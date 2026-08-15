@@ -74,7 +74,7 @@ declare module '@plugin-host' {
       defaultEncrypt?: boolean;
       lockOnLogout?: boolean;
       encryptDrafts?: boolean;
-      askForDefaultKeyPassOnActivated?: boolean;
+      askForDefaultKeyPassOnActivated?: "default" | "all" | "false";
       alwaysSendPubKey?: boolean;
       tryToFetchMissingKeys?: boolean;
       StoreDangerous?: boolean;

@@ -166,24 +166,3 @@ function dataUrlToUint8Array(dataUrl: string): Uint8Array {
 
     throw new Error('No base64 decoder available in plugin environment');
 }
-
-/* export function getQuoteBodies(
-  email: Pick<Email, "textBody" | "htmlBody" | "bodyValues" | "preview">
-): { body: string; htmlBody?: string } {
-  const textPart = email.textBody?.[0];
-  const htmlPart = email.htmlBody?.[0];
-  const textValue = textPart ? email.bodyValues?.[textPart.partId]?.value : undefined;
-  const htmlValue = htmlPart ? email.bodyValues?.[htmlPart.partId]?.value : undefined;
-
-  const textPartIsHtml = textPart?.type?.toLowerCase() === "text/html";
-  // A missing type is treated as HTML, matching the viewer's rendering path.
-  const htmlPartIsHtml = !htmlPart?.type || htmlPart.type.toLowerCase() === "text/html";
-
-  const body = textValue
-    ? (textPartIsHtml ? htmlToPlainText(textValue, { paragraphSpacing: true }) : textValue)
-    : (email.preview || "");
-  return {
-    body,
-    htmlBody: htmlPartIsHtml ? htmlValue || undefined : undefined,
-  };
-} */

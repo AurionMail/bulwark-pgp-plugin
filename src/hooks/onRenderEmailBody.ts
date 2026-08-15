@@ -62,11 +62,17 @@ export async function onRenderEmailBody(body: any, ctx: any): Promise<any | unde
 
     // ── Case 2: Signed Only ──
     if (isSignedCase) {
+      // 1. Get the signature Blob
       const signatureBlock = detection.signatureBlobId ? await host.jmap.fetchBlob(detection.signatureBlobId) : null;
       const signatureString = signatureBlock ? new TextDecoder().decode(signatureBlock) : null;
 
-      const v = await pgpVerify(new TextEncoder().encode(pgpMessageContent), fromEmail, signatureString, knownPublicKeys);
-      const parsed = parseMime(v.mimeBytes);
+      // Get the data of signed MIME
+      //    We don't use just the rawMessage
+      const signedPartBlobId = detection.signedPartBlobId || detection.blobId || ctx.blobId;
+      const signedContentBytes = await host.jmap.fetchBlob(signedPartBlobId);
+
+      const v = await pgpVerify(signedContentBytes, fromEmail, signatureString, knownPublicKeys);
+      const parsed = parseMime(v.mimeBytes || signedContentBytes);
 
       await persistVerifyStatus(ctx.id, v.status);
       if (parsed.attachments) {
@@ -139,24 +145,27 @@ async function handleInlineEncrypted(
   let htmlBody = '';
   let textBody = '';
   let attachments = ctx.attachments;
+  let result;
 
   if (detection.htmlBody) {
-    const htmlBytes = (await pgpDecrypt({
+    result = await pgpDecrypt({
       cmsBytes: new TextEncoder().encode(detection.htmlBody),
       keyRecords,
       unlockedKeys,
       knownPublicKeys,
-    })).mimeBytes;
+    });
+    const htmlBytes = result.mimeBytes;
     htmlBody = decoder.decode(htmlBytes);
   }
 
   if (detection.textBody) {
-    const textBytes = (await pgpDecrypt({
+    result = await pgpDecrypt({
       cmsBytes: new TextEncoder().encode(detection.textBody),
       keyRecords,
       unlockedKeys,
       knownPublicKeys,
-    })).mimeBytes;
+    });
+    const textBytes = result.mimeBytes;
     textBody = decoder.decode(textBytes);
 
     const metadataRegex = /<--PGP_METADATA_START-->([\s\S]*?)<--PGP_METADATA_END-->/;
@@ -247,7 +256,7 @@ async function handleInlineEncrypted(
   const verif = { isEncrypted: true, decryptionSuccess: true, isSigned: false }
   await persistVerifyStatus(ctx.id, verif);
 
-  await indexAndPersistDecryptedMail(ctx.id, textBody)
+  await indexAndPersistDecryptedMail(result?.keyRecordAccountId, ctx.id, textBody);
   return {
     ...body,
     handledBy: 'openpgp',
@@ -344,7 +353,7 @@ async function handleMimeEncrypted(
   if (parsed.attachments) {
     await scanAndImportKeysFromAttachments(parsed.attachments);
   }
-   await indexAndPersistDecryptedMail(ctx.id, parsed.text ||parsed.html || '');
+   await indexAndPersistDecryptedMail(result.keyRecordAccountId, ctx.id, parsed.text ||parsed.html || '');
   return {
     ...body,
     handledBy: 'openpgp',

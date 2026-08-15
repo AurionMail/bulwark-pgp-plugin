@@ -62,7 +62,8 @@ export function initBackgroundSessionListener(): void {
         break;
 
       case 'INITIALIZE_RAM_INDEX':
-        _ramDecryptedIndex = msg.decryptedIndex;
+        // add instead of replacing to avoid overwriting existing entries and allowing for multiple keys to contribute to the index
+        _ramDecryptedIndex = { ..._ramDecryptedIndex, ...msg.decryptedIndex };
         break;
 
       case 'REQUEST_PREVIEWS_BATCH': {
