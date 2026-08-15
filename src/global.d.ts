@@ -6,7 +6,7 @@ declare module '@plugin-host' {
     set(key: string, value: any): Promise<void>;
   };
   export const jmap: {
-    fetchBlob(blobId: string, options?: { name?: string; type?: string }): Promise<Uint8Array>;
+    fetchBlob(blobId: string, options?: { name?: string; type?: string, rangeHeader?: string }): Promise<Uint8Array>;
     uploadBlob(blob: Uint8Array, name: string, type: string): Promise<{ blobId: string; size: number; type: string; }>;
     sendRaw(blob: ArrayBuffer, identityId: string, options: { envelopeRecipients: string[] }): Promise<void>;
     submitRaw(blob: ArrayBuffer, identityId: string, options?: { envelopeRecipients: string[] }): Promise<void>;
