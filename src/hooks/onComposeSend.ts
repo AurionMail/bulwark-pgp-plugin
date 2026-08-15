@@ -214,6 +214,18 @@ export async function onComposeSend(req: ComposeRequest): Promise<boolean | unde
       references: req.references,
       attachments,
     });
+    // Build a version of the clear MIME message without headers for signing without encrypting purposes
+     const clearMimeBytesWithoutHeaders = buildMimeMessage({
+      from,
+      to: req.to,
+      cc: req.cc,
+      subject: req.subject || '',
+      textBody: req.textBody || req.text || '',
+      htmlBody: req.htmlBody || req.html || '',
+      inReplyTo: req.inReplyTo,
+      references: req.references,
+      attachments,
+    }, false);
 
     const clearMimeBytesWithID = buildMimeMessage({
       from,
@@ -343,8 +355,8 @@ export async function onComposeSend(req: ComposeRequest): Promise<boolean | unde
       let clearEnvelopeBlob: Blob;
 
       if (sign && signingKeyForPgp) {
-        const signatureBlob = await pgpSignDetached(clearMimeBytes, signingKeyForPgp);
-        const clearMimeBytesBlob = new Blob([clearMimeBytes.slice().buffer], { type: 'application/octet-stream' });
+        const signatureBlob = await pgpSignDetached(clearMimeBytesWithoutHeaders, signingKeyForPgp);
+        const clearMimeBytesBlob = new Blob([clearMimeBytesWithoutHeaders as BlobPart], { type: 'application/octet-stream' });
         clearEnvelopeBlob = wrapAsPgpMimeSigned(clearMimeBytesBlob, signatureBlob, {
           from, 
           to: nonPgpTo, 
@@ -367,7 +379,7 @@ export async function onComposeSend(req: ComposeRequest): Promise<boolean | unde
           attachments,
           messageId: clearMessageId
         });
-        clearEnvelopeBlob = new Blob([clearMimeWithClearID.slice().buffer], { type: 'application/octet-stream' });
+        clearEnvelopeBlob = new Blob([clearMimeWithClearID as BlobPart], { type: 'application/octet-stream' });
       }
 
       const pgpBytes = await blobToBytes(pgpEnvelopeBlob);
@@ -398,14 +410,14 @@ export async function onComposeSend(req: ComposeRequest): Promise<boolean | unde
       // C.1: Network envelope (cleartext or signed)
       let networkEnvelopeBlob: Blob;
       if (sign && signingKeyForPgp) {
-        const signatureBlob = await pgpSignDetached(clearMimeBytes, signingKeyForPgp);
-        const clearMimeBytesBlob = new Blob([clearMimeBytes.slice().buffer], { type: 'application/octet-stream' });
+        const signatureBlob = await pgpSignDetached(clearMimeBytesWithoutHeaders, signingKeyForPgp);
+        const clearMimeBytesBlob = new Blob([clearMimeBytesWithoutHeaders as BlobPart], { type: 'application/octet-stream' });
 
         networkEnvelopeBlob = wrapAsPgpMimeSigned(clearMimeBytesBlob, signatureBlob, {
           from, to: req.to, cc: req.cc, subject: req.subject || '', inReplyTo: req.inReplyTo, references: req.references, messageId
         });
       } else {
-        networkEnvelopeBlob = new Blob([clearMimeBytesWithID.slice().buffer], { type: 'application/octet-stream' });
+        networkEnvelopeBlob = new Blob([clearMimeBytesWithID as BlobPart], { type: 'application/octet-stream' });
       }
 
       // C.2: Envelope encrypted ONLY with sender's public key for the Sent folder

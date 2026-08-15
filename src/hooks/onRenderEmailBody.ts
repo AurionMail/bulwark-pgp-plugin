@@ -62,11 +62,17 @@ export async function onRenderEmailBody(body: any, ctx: any): Promise<any | unde
 
     // ── Case 2: Signed Only ──
     if (isSignedCase) {
+      // 1. Get the signature Blob
       const signatureBlock = detection.signatureBlobId ? await host.jmap.fetchBlob(detection.signatureBlobId) : null;
       const signatureString = signatureBlock ? new TextDecoder().decode(signatureBlock) : null;
 
-      const v = await pgpVerify(new TextEncoder().encode(pgpMessageContent), fromEmail, signatureString, knownPublicKeys);
-      const parsed = parseMime(v.mimeBytes);
+      // Get the data of signed MIME
+      //    We don't use just the rawMessage
+      const signedPartBlobId = detection.signedPartBlobId || detection.blobId || ctx.blobId;
+      const signedContentBytes = await host.jmap.fetchBlob(signedPartBlobId);
+
+      const v = await pgpVerify(signedContentBytes, fromEmail, signatureString, knownPublicKeys);
+      const parsed = parseMime(v.mimeBytes || signedContentBytes);
 
       await persistVerifyStatus(ctx.id, v.status);
       if (parsed.attachments) {

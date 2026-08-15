@@ -20,26 +20,38 @@ export async function pgpVerify(contentBytes: Uint8Array, fromHeader: string, pg
 
   try {
     if (pgpSignatureBlock) {
-      // ── Case 1: PGP/MIME format (detached signature) ────────────────
-      const message = await openpgp.createMessage({ binary: contentBytes });
+      // ── Case 1: PGP/MIME format (detached signature - RFC 3156) ────────
+      let textContent = new TextDecoder('utf-8', { fatal: false }).decode(contentBytes);
+
+      if (textContent.includes('multipart/signed') && textContent.includes('boundary=')) {
+        textContent = extractPart1FromMultipartSigned(textContent);
+      }
+
+      // Force la canonicalisation CRLF (\r\n) conforme à la RFC 3156 / RFC 4880
+      const canonicalizedText = textContent.replace(/\r?\n/g, '\r\n');
+
+      // Utiliser createMessage avec text (et non createCleartextMessage pour éviter le dash-escaping sur les boundaries MIME)
+      const message = await openpgp.createMessage({ text: canonicalizedText });
       const signature = await openpgp.readSignature({ armoredSignature: pgpSignatureBlock });
-      
+
       verificationResult = await openpgp.verify({
         message,
         signature,
-        verificationKeys: knownPublicKeys // Pass the known keys here for validation
+        verificationKeys: knownPublicKeys
       });
+
+      mimeBytes = new TextEncoder().encode(canonicalizedText);
     } else {
-      // ── Case 2: PGP Inline format (wrapped signature or cleartext) ──
+      // ── Case 2: PGP Inline format ─────────────────────────────────────
       const textContent = new TextDecoder('utf-8', { fatal: false }).decode(contentBytes);
       const message = await openpgp.readMessage({ armoredMessage: textContent });
-      
+
       verificationResult = await openpgp.verify({
         message,
-        verificationKeys: knownPublicKeys, // Pass the known keys here as well
+        verificationKeys: knownPublicKeys,
         format: 'binary'
       });
-      
+
       mimeBytes = verificationResult.data;
     }
   } catch (err) {
@@ -146,4 +158,43 @@ export async function pgpVerify(contentBytes: Uint8Array, fromHeader: string, pg
       selfSigned: true, 
     },
   };
+}
+
+/**
+ * Extract part 1 of multipart/signed (RFC 3156)
+ */
+function extractPart1FromMultipartSigned(rawMimeText: string): string {
+  // 1. serach boundary of multipart/signed
+  const boundaryMatch = rawMimeText.match(/boundary=\s*"?([^";\r\n]+)"?/i);
+  if (!boundaryMatch) return rawMimeText;
+
+  const boundary = boundaryMatch[1].trim();
+  const delimiter = `--${boundary}`;
+
+  // 2. find the first delimiter
+  const firstBoundaryIndex = rawMimeText.indexOf(delimiter);
+  if (firstBoundaryIndex === -1) return rawMimeText;
+
+  // find the start of content
+  let startOfPart1 = rawMimeText.indexOf('\n', firstBoundaryIndex);
+  if (startOfPart1 === -1) return rawMimeText;
+  startOfPart1 += 1; // Avancer après le \n
+
+  // 3. find the second delimiter
+  const secondBoundaryIndex = rawMimeText.indexOf(delimiter, startOfPart1);
+  if (secondBoundaryIndex === -1) return rawMimeText;
+
+  // 4. extract part 1
+  let part1 = rawMimeText.substring(startOfPart1, secondBoundaryIndex);
+
+  // 5. RFC 1847 / RFC 3156 :
+  // Le CRLF (\r\n ou \n) situated BEFORE the second délimiter
+  // belong to delimiter and must be retrired from signed content.
+  if (part1.endsWith('\r\n')) {
+    part1 = part1.slice(0, -2);
+  } else if (part1.endsWith('\n')) {
+    part1 = part1.slice(0, -1);
+  }
+
+  return part1;
 }
