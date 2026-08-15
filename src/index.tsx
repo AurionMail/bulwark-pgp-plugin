@@ -24,6 +24,10 @@ import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
 import { onAfterLogout } from './hooks/onAfterLogout.ts';
 import {onBeforeComposeOpenToReply, onBeforeComposeOpenToReplyAll, onBeforeComposeOpenToForward} from './hooks/onBeforeComposeOpenTo.ts';
 import { main } from './migrations/2.0.0.ts';
+import { activateAurionAPI, initAurionAPI, syncfromAurion } from './aurion/utils.ts';
+import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
+import { initAurionBackgroundSessionListener } from './aurion/session-broadcast.ts';
+import { onBeforeLogout } from './aurion/onBeforeLogout.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -68,6 +72,7 @@ export const hooks = {
   onEmailsFetched,
   onRecipientChipsChange,
   onAfterLogout,
+  onBeforeLogout,
   async onAccountSwitch() {
     if (settings().lockOnLogout === false) return;
    await clearDangerousStorage();
@@ -92,7 +97,8 @@ export const slots = {
     component: EmailSecuBanner,
     shouldShow,
     order: 60
-  }
+  },
+  'navigation-rail-bottom': { component: Navbar, order: 70 }
 };
 
 export async function activate(api :any) {
@@ -111,7 +117,11 @@ export async function activate(api :any) {
 
   let locked = true;
   initBackgroundSessionListener();
-    if(settings().StoreDangerous && await config('allowPersistentKeys') === true){
+
+  locked = await activateAurionAPI();
+
+    if(settings().StoreDangerous && await config('allowPersistentKeys') === true && locked){
+      console.log('Restoring keys from dangerous storage', locked);
     await restoreKeysFromDangerousStorage();
     locked = false;
   }

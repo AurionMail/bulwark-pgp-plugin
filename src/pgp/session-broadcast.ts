@@ -4,7 +4,7 @@ import { DecryptedCachePayload, listKeyRecords, SessionKeysEntry } from '../stor
 import { deriveSecret } from './key-utils.ts';
 import { loadDangerousPassphrases, getKeyRecord } from '../storage.ts';
 import { unlockPrivateKey } from './import.ts'; 
-const CHANNEL_NAME = 'pgp-session-bus';
+export const CHANNEL_NAME = 'pgp-session-bus';
 
 let _backgroundSessionKeys: Record<string, SessionKeysEntry> = {};
 let _ramDecryptedIndex: Record<string, { preview: string, tokens: string[] }> = {};
