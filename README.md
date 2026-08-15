@@ -1,6 +1,6 @@
 # PGP True E2E Plugin
 > [!CAUTION]
-> To get all features (local search, webauthn, export/import settings) you must use the version >=1.7.8 of bulwark mail.
+> Migration to 2.0.0 : For users with > 1 accounts at same time: the index/preview will be reinitialized. You will have to re populate it by decrypting emails. More details about the migration here : https://github.com/paulhenry46/pgp-plugin/pull/17
 
 End-to-end PGP for Bulwark Webmail, implemented as a **privileged** (same-origin) plugin. All cryptography runs locally in the browser — no key material ever leaves your device.
 

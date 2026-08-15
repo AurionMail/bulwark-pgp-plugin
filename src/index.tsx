@@ -19,10 +19,11 @@ import { onEmailsFetched } from './hooks/onEmailsFetched.ts';
 import { askForDefaultKeyPass } from './hooks/activate.ts';
 import { onRecipientChipsChange } from './hooks/onRecipientChipsChange.ts';
 import { ContactCrypto } from './ui/contact.tsx';
-import { clearDangerousStorage, getDefaultKeyRecord } from './storage.ts';
+import { clearDangerousStorage, getCurrentDbVersion, getDefaultKeyRecord, recordMigration } from './storage.ts';
 import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
 import { onAfterLogout } from './hooks/onAfterLogout.ts';
 import {onBeforeComposeOpenToReply, onBeforeComposeOpenToReplyAll, onBeforeComposeOpenToForward} from './hooks/onBeforeComposeOpenTo.ts';
+import { main } from './migrations/2.0.0.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -100,6 +101,14 @@ export async function activate(api :any) {
     try { api.toast.error('OpenPGP needs the privileged tier — see plugin logs.'); } catch { /* ignore */ }
     return;
   }
+
+  const dbVersion = await getCurrentDbVersion();
+  if (dbVersion < 2) {
+    api.log.info(`Detected old database version ${dbVersion}. Running migration to 2.0.0...`);
+    await main();
+    await recordMigration(2, 'Migration to 2.0.0: Assign keys to accounts and remove message cache.');
+  }
+
   let locked = true;
   initBackgroundSessionListener();
     if(settings().StoreDangerous && await config('allowPersistentKeys') === true){
