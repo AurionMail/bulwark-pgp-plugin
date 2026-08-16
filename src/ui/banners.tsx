@@ -37,9 +37,11 @@ interface VerificationStatus {
   signatureError?: string;
   unsupportedReason?: string;
   processing?: boolean;
+  isEncryptedByServer?: boolean; // New property to indicate if the message is encrypted by server
+  
 }
 
-type Tone = 'ok' | 'warn' | 'error' | 'muted';
+type Tone = 'ok' | 'warn' | 'error' | 'muted' | 'blue';
 type BannerRow = [string, Tone];
 
 
@@ -93,8 +95,14 @@ export function EmailBanner(props: EmailProps) {
   let encTone: Tone = 'muted';
   if (status.isEncrypted) {
     if (status.decryptionSuccess) {
+      if(status.isEncryptedByServer) {
+        encText = host.i18n.t('banner.encrypted_server');
+        encTone = 'blue';
+      }else{
       encText = host.i18n.t('banner.decrypted_success');
       encTone = 'ok';
+      }
+
     } else if (status.decryptionError === 'locked') {
       encText = host.i18n.t('banner.encrypted_locked');
       encTone = 'warn';
@@ -131,6 +139,7 @@ export function EmailBanner(props: EmailProps) {
   const tones = [encTone, sigTone];
   const globalTone: Tone = tones.includes('error') ? 'error'
     : tones.includes('warn') ? 'warn'
+    : tones.includes('blue') ? 'blue'
     : tones.includes('ok') ? 'ok'
     : 'muted';
 
@@ -142,6 +151,7 @@ export function EmailBanner(props: EmailProps) {
   const baseColor = globalTone === 'ok' ? 'var(--color-success, #16a34a)'
     : globalTone === 'error' ? 'var(--color-destructive, #dc2626)'
     : globalTone === 'warn' ? 'var(--color-warning, #d97706)'
+    : globalTone === 'blue' ? 'var(--color-primary, #3b82f6)'
     : 'var(--color-muted-foreground, #64748b)';
 
   const theme = {
