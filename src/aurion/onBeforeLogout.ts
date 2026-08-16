@@ -1,7 +1,23 @@
 import host from "@plugin-host";
 import { config } from "../../src/shared.ts";
+import { sendToBridgeIframe } from "./secrets/sender.ts";
 export async function onBeforeLogout(args: any): Promise<boolean> {
   console.log("onBeforeLogout: removing sensitive data and logging out");
+
+  const logoutRequired = new Date(await host.storage.get('logoutRequired'));
+  if (logoutRequired && (Date.now() - logoutRequired.getTime()) < 120000) {
+        const ssoDomain = await config('SSOURL');
+
+        await sendToBridgeIframe(
+          `${ssoDomain}/sso_bridge.html`,
+          ssoDomain,
+          { type: 'WRITE_FORCE_LOGOUT' }
+        );
+
+     host.ui.openExternalUrl(await config("HydraURL") + "/oauth2/sessions/logout");
+    return true;
+  }
+
   host.ui.openExternalUrl(await config("HydraURL") + "/oauth2/sessions/logout");
   //host.user.logout();
   // we return false to prevent default logout behavior, because an event 
