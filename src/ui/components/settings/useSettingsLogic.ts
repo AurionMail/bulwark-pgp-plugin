@@ -12,7 +12,7 @@ import {
 } from '../../../storage.ts';
 
 import { importOpenPgpPrivateKey, importOpenPgpPublicKey, unlockPrivateKey } from '../../../pgp/import.ts';
-import { encryptPassphraseWithWebAuthn, decryptPassphraseWithWebAuthn } from '../../../webauthn/settings.ts';
+import { encryptPassphraseWithWebAuthn, decryptPassphraseWithWebAuthn, unlockWithWebAuthnRegisteredKeys } from '../../../webauthn/settings.ts';
 
 import { 
   fetchKeyFromBackground, 
@@ -221,38 +221,7 @@ export function useSettingsLogic() {
   }
 
   async function handleUnlockAllWithWebAuthn() {
-    const webauthnKeys = keys.filter(k => k.webauthn && !unlocked[k.id]);
-    if (webauthnKeys.length === 0) return;
-
-    setBusy(true);
-    try {
-      const firstWebAuthnKey = webauthnKeys[0].webauthn!;
-      const masterCredIdBytes = bufferToBytes(firstWebAuthnKey.credentialId);
-
-      const response = await host.crypto.getOrCreateWebAuthn(masterCredIdBytes);
-      const prfSecret = bytesToBuffer(response.prfSecret);
-      
-      for (const rec of webauthnKeys) {
-        if (!rec.webauthn) continue;
-
-        const realPassphrase = await decryptPassphraseWithWebAuthn(
-          rec.webauthn.encryptedPassphrase,
-          prfSecret,
-          rec.webauthn.iv
-        );
-
-        const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(rec, realPassphrase);
-        
-        broadcastUnlockKey({ id: rec.id, unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey });
-      }
-
-      host.toast.success(host.i18n.t('settings.success.unlock_all_webauthn'));
-      await refresh();
-    } catch (err: any) {
-      host.toast.error(host.i18n.t('settings.error.unlock_all_failed', { message: err?.message || String(err) }));
-    } finally {
-      setBusy(false);
-    }
+    await unlockWithWebAuthnRegisteredKeys(keys, unlocked, setBusy, refresh);
   }
 
   async function initiateUnlock(rec: KeyRecord) {
