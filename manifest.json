@@ -304,7 +304,9 @@
       "settings.action.change_passphrase": "Change passphrase",
       "settings.pro_mode_desc": "Display all keys (all accounts)",
       "settings.pro_mode_title": "Pro Mode",
-      "settings.account_mode_desc": "Keys for account"
+      "settings.account_mode_desc": "Keys for account",
+      "prompt.unlock_default_key.webauthn_title": "Unlock your keys with WebAuthn",
+      "prompt.unlock_default_key.webauthn_message": "Continue to use WebAuthn to unlock your keys. If you cancel, you will have to unlock your keys manually with your passphrase."
     }
   }
 }
