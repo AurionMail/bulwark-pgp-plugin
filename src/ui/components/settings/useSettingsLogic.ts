@@ -192,17 +192,47 @@ export function useSettingsLogic() {
         ? bufferToBytes(existingKeyWithWebAuthn.webauthn.credentialId)
         : undefined;
 
-      const response = await host.crypto.getOrCreateWebAuthn(masterCredIdBytes, 'bulwark-webmail-pgp-true-e2e', 'Master Key for Bulwark PGP Plugin');
+      // 1. Initiate passkey creation
+      let response = await host.crypto.createWebAuthn(
+        'bulwark-webmail-pgp-true-e2e', 
+        'Master Key for Bulwark PGP Plugin'
+      );
+      let credentialId: number[] = [];
+      let prfSecret: number[] = []; 
+
+      // 2. Handle iOS/Safari fallback requiring a fresh user gesture
+      if (response.success === false && response.reason === 'NEEDS_USER_ACTION') {
+        const userConfirmed = await host.ui.confirm({
+          title: 'Passkey Created',
+          message: 'Your key was saved. Click OK to unlock and complete setup.'
+        });
+
+        if (userConfirmed && response.credentialId) {
+          // Pass the credentialId obtained during creation to retrieve the PRF secret
+          const newResponse = await host.crypto.getWebAuthn(response.credentialId);
+          credentialId = newResponse.credentialId;
+          prfSecret = newResponse.prfSecret;
+        } else {
+          // User cancelled the confirmation modal
+          return { success: false, reason: 'User cancelled secondary verification.' };
+        }
+      }else if(response.credentialId && response.prfSecret){
+          credentialId = response.credentialId;
+          prfSecret = response.prfSecret;
+      }
+
+      // 3. Handle failure or process success
+      if (!response || ('success' in response && response.success === false)) {
+        console.error('Failed to setup WebAuthn key:', response.reason);
+        return;
+      }
       
-      const credentialId = bytesToBuffer(response.credentialId);
-      const prfSecret = bytesToBuffer(response.prfSecret);
-      
-      const { ciphertext, iv } = await encryptPassphraseWithWebAuthn(passphrase, prfSecret);
+      const { ciphertext, iv } = await encryptPassphraseWithWebAuthn(passphrase, bytesToBuffer(prfSecret));
 
       await saveKeyRecord({
         ...rec,
         webauthn: {
-          credentialId,
+          credentialId : bytesToBuffer(credentialId),
           encryptedPassphrase: ciphertext,
           iv: iv.buffer.slice(0) as ArrayBuffer
         }

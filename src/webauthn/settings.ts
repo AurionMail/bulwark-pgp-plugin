@@ -16,6 +16,7 @@ export async function encryptPassphraseWithWebAuthn(passphrase: string, prfSecre
 }
 
 export async function decryptPassphraseWithWebAuthn(encryptedData: ArrayBuffer, prfSecret: ArrayBuffer, iv: ArrayBuffer): Promise<string> {
+  try{
   const aesKey = await crypto.subtle.importKey("raw", prfSecret, "AES-GCM", false, ["decrypt"]);
   const decrypted = await crypto.subtle.decrypt(
     { name: "AES-GCM", iv },
@@ -23,6 +24,10 @@ export async function decryptPassphraseWithWebAuthn(encryptedData: ArrayBuffer, 
     encryptedData
   );
   return new TextDecoder().decode(decrypted);
+  }catch(err){
+    host.log.error("Failed to decrypt passphrase with WebAuthn", err);
+    throw new Error("Failed to decrypt passphrase with WebAuthn");
+  }
 }
 
 export async function unlockWithWebAuthnRegisteredKeys(keys : KeyRecord[], unlocked: Record<string, boolean>, setBusy?: (busy: boolean) => void, refresh?: () => Promise<void>) {
@@ -34,12 +39,12 @@ export async function unlockWithWebAuthnRegisteredKeys(keys : KeyRecord[], unloc
         const firstWebAuthnKey = webauthnKeys[0].webauthn!;
         const masterCredIdBytes = bufferToBytes(firstWebAuthnKey.credentialId);
   
-        const response = await host.crypto.getOrCreateWebAuthn(masterCredIdBytes);
+        const response = await host.crypto.getWebAuthn(masterCredIdBytes);
         const prfSecret = bytesToBuffer(response.prfSecret);
         
         for (const rec of webauthnKeys) {
           if (!rec.webauthn) continue;
-  
+          host.log.info(`Unlocking key ${rec.id} (${rec.email}) with WebAuthn`);
           const realPassphrase = await decryptPassphraseWithWebAuthn(
             rec.webauthn.encryptedPassphrase,
             prfSecret,

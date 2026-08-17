@@ -18,7 +18,9 @@ declare module '@plugin-host' {
       removePublicKey(keyId: string): Promise<void>;
       setEncryptionAtRest(config: EncryptionAtRestConfig): Promise<void>;
       getEncryptionAtRest(): Promise<EncryptionAtRestConfig>;
-      getOrCreateWebAuthn(masterCredIdBytes?: number[], rpId?: string, userVisibleName?: string): Promise<{ credentialId: number[]; prfSecret: number[] }>;
+      getWebAuthn(masterCredentialIdBytes: number[]): Promise<{credentialId: number[]; prfSecret: number[]}>;
+      createWebAuthn(name: string, displayName: string):  Promise<{ success: true; credentialId: number[]; prfSecret: number[] } | { success: false; reason: 'NEEDS_USER_ACTION'; credentialId: number[], prfSecret?: number[] } | { success: false; reason: string; credentialId?: number[], prfSecret?: number[] }>;
+      //getOrCreateWebAuthn(masterCredIdBytes?: number[], rpId?: string, userVisibleName?: string): Promise<{ credentialId: number[]; prfSecret: number[] }>;
     },
   export const upfiles: {
     get(fileId: string): Promise<File>;
