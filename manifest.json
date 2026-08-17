@@ -118,6 +118,12 @@
       "label": "Lock keys on logout",
       "description": "Whether to lock all keys when the user logs out. This is used only when StoreDangerous is enabled. This is useful if you want to avoid leaving unlocked keys in memory when the user logs out.",
       "default": false
+    },
+    "useCurve25519": {
+      "type": "boolean",
+      "label": "Use Curve25519 for key generation",
+      "description": "Whether to use Curve25519 for key generation. This is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail.",
+      "default": true
     }
   },
   "locales": {

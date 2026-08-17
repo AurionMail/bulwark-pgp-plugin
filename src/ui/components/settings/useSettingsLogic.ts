@@ -23,6 +23,7 @@ import {
 import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
 import { AccountEntry, bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
 import { changePassword } from '../../../pgp/change-passphrase.ts';
+import { settings } from '../../../shared.ts';
 
 export function useSettingsLogic() {
   const [accounts, setAccounts] = useState<AccountEntry[]>([]);
@@ -621,12 +622,26 @@ export function useSettingsLogic() {
     setBusy(true);
     try {
       const { codeFormatted, codeRaw } = generateNumericRecoveryCode();
-      const { privateKey, revocationCertificate } = await openpgp.generateKey({
-        type: 'curve25519',
-        userIDs: [{ name: data.name, email: data.email }],
-        passphrase: data.pass,
-        format: 'armored'
-      });
+      let privateKey: string;
+      let revocationCertificate: string;
+
+      if (settings().useCurve25519 == true) {
+        ({ privateKey, revocationCertificate } = await openpgp.generateKey({
+          type: 'curve25519',
+          userIDs: [{ name: data.name, email: data.email }],
+          passphrase: data.pass,
+          subkeys: [{ type: 'curve25519' }],
+          format: 'armored'
+        }));
+      } else {
+        ({ privateKey, revocationCertificate } = await openpgp.generateKey({
+          type: 'rsa',
+          rsaBits: 4096,
+          userIDs: [{ name: data.name, email: data.email }],
+          passphrase: data.pass,
+          format: 'armored'
+        }));
+      }
       //if there is not default key, set this one as default
       // Check for an existing default key
       const hasDefaultKey = keys.some(k => k.default);

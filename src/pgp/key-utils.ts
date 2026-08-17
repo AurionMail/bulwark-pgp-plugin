@@ -165,11 +165,11 @@ export async function extractKeyInfo(key: openpgp.PublicKey | openpgp.PrivateKey
   }
 
   return {
-    subject,                                      
+    subject,
     issuer: 'Self-Signed (OpenPGP Web of Trust)', 
-    serialNumber: keyID,                         
+    serialNumber: keyID,
     notBefore: creationDate.toISOString(),
-    notAfter: expirationIso,          
+    notAfter: expirationIso,
     fingerprint: formattedFingerprint, 
     algorithm: algorithmName,
     keyUsage: capabilities.canSign ? ['digitalSignature'] : [],

@@ -73,6 +73,7 @@ declare module '@plugin-host' {
       alwaysSendPubKey?: boolean;
       tryToFetchMissingKeys?: boolean;
       StoreDangerous?: boolean;
+      useCurve25519?: boolean;
     };
   } | undefined;
 }
