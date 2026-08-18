@@ -885,7 +885,7 @@ export function useSettingsLogic() {
         await persistPassphraseToDangerousStorage(rec.id, result.newPassphrase);
       }
 
-      host.ui.openExternalUrl(cryptpadDomain + '/settings/#security');
+      host.ui.openExternalUrl(cryptpadDomain + '/drive');
       host.user.logout();
       
       host.toast.success(host.i18n.t('settings.success.key_unlocked', { identity: rec.email || host.i18n.t('settings.label.generic_key') }));
