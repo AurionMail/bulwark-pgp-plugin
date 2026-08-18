@@ -44,6 +44,10 @@ export async function unlockWithWebAuthnRegisteredKeys(keys : KeyRecord[], unloc
         
         for (const rec of webauthnKeys) {
           if (!rec.webauthn) continue;
+          if(rec.webauthn.credentialId !== firstWebAuthnKey.credentialId) {
+            host.log.warn(`Skipping key ${rec.id} (${rec.email}) because its WebAuthn credential ID does not match the first key's credential ID`);
+            continue;
+          }
           host.log.info(`Unlocking key ${rec.id} (${rec.email}) with WebAuthn`);
           const realPassphrase = await decryptPassphraseWithWebAuthn(
             rec.webauthn.encryptedPassphrase,
