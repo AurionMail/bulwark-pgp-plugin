@@ -255,6 +255,30 @@ export function useSettingsLogic() {
     await unlockWithWebAuthnRegisteredKeys(keys, unlocked, setBusy, refresh);
   }
 
+  async function removeWebAuthnLink(rec: KeyRecord) {
+    const ok = await host.ui.confirm({
+      title: host.i18n.t('settings.confirm.remove_webauthn_title'),
+      message: host.i18n.t('settings.confirm.remove_webauthn_msg', { identity: rec.email || host.i18n.t('settings.label.generic_identity') }),
+      danger: true,
+      confirmLabel: host.i18n.t('settings.action.remove'),
+    });
+    if (!ok) return;
+
+    setBusy(true);
+    try {
+      await saveKeyRecord({
+        ...rec,
+        webauthn: undefined
+      });
+      host.toast.success(host.i18n.t('settings.success.webauthn_removed'));
+      await refresh();
+    } catch (err: any) {
+      host.toast.error(host.i18n.t('settings.error.generic_failure', { message: err.message }));
+    } finally {
+      setBusy(false);
+    }
+  }
+
   async function initiateUnlock(rec: KeyRecord) {
     const identity = rec.email || host.i18n.t('prompt.unlock_key.fallback_identity');
 
@@ -840,6 +864,7 @@ export function useSettingsLogic() {
     handleExportJSON,
     handleImportJSON,
     changePass,
-    handleDownloadKey
+    handleDownloadKey,
+    removeWebAuthnLink
   };
 }
