@@ -131,7 +131,7 @@ export async function activate(api :any) {
   }
   api.log.info('OpenPGP plugin activated with memory-only session management.');
   if(await config('forceEncryption') === true && !(await getDefaultKeyRecord())){
-    const result = await api.ui.confirm({
+    api.ui.confirm({
       title: api.i18n.t('prompt.no_default_key.title'),
       message: api.i18n.t('prompt.no_default_key.message'),
       danger: true,
@@ -142,6 +142,8 @@ export async function activate(api :any) {
   if(((settings().askForDefaultKeyPassOnActivated == "default" || settings().askForDefaultKeyPassOnActivated == "all") || await config('blockUntilDefaultKeyIsAvailable') === true) && locked){
     let value = settings().askForDefaultKeyPassOnActivated || "default";
     if(value == "false") value = "default";
-      await askForDefaultKeyPass(value);
+      askForDefaultKeyPass(value).catch(err => {
+      api.log.error('Error during passphrase prompt:', err);
+    });
   }
 }

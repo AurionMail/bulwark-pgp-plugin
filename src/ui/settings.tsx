@@ -34,7 +34,8 @@ const {
     handleExportJSON,
     handleImportJSON,
     changePass,
-    handleDownloadKey
+    handleDownloadKey,
+    removeWebAuthnLink
   } = useSettingsLogic();
 
   if (keys.length === 0) {
@@ -242,6 +243,7 @@ const {
         onChangePass={changePass}
         accounts={accounts}
         selectedAccountId={selectedAccountId}
+        onremoveWebAuthnLink={removeWebAuthnLink}
       />
 
       <PublicKeysSection

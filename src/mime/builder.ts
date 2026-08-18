@@ -6,6 +6,7 @@
 
 import { createMimeMessage } from 'mimetext/browser';
 import { generateUUID } from '../util.ts';
+import host from '@plugin-host';
 
 const CRLF = '\r\n';
 function stripEnvelopeHeaders(rawMime: string): string {
@@ -65,7 +66,18 @@ function stripEnvelopeHeaders(rawMime: string): string {
  */
 export function buildMimeMessage(input: any, withHeaders: boolean = true): Uint8Array {
   const msg = createMimeMessage();
-  msg.setSender(input.from);
+
+  if (input.from) {
+    const rawName = typeof input.from === 'object' ? input.from.name : undefined;
+    const rawAddr = typeof input.from === 'object' ? input.from.addr : input.from;
+
+    if (!rawName || rawName.trim() === '' || rawName.trim() === rawAddr) {
+      msg.setSender(rawAddr);
+    } else {
+      msg.setSender({ name: rawName.trim(), addr: rawAddr });
+    }
+  }
+
   msg.setTo(input.to);
   msg.setSubject(input.subject);
 
@@ -203,6 +215,42 @@ export function wrapAsPgpMimeSigned(
   const closingBytes = new TextEncoder().encode(`${CRLF}--${boundary}--${CRLF}`);
   
   return new Blob([initialHeaderBytes, clearMimeBytes as BlobPart, middleBytes, pgpSignatureBlob, closingBytes], { type: 'application/octet-stream' });
+}
+
+export function wrapAsNormalMessage(
+  clearMimeBytes: Blob | Uint8Array | string, 
+  input: any
+): Blob {
+  const boundary = generateBoundary();
+  const lines: string[] = [];
+
+  // En-têtes de l'enveloppe extérieure
+  lines.push(formatHeader('From', formatAddress(input.from)));
+  const toEntries = Array.isArray(input.to) ? input.to : [input.to];
+  const cleanTo = toEntries
+    .map((t: any) => typeof t === 'string' ? t : (t.email || t.addr || ''))
+    .filter(Boolean);
+
+  lines.push(formatHeader('To', cleanTo.join(', ')));
+  if (input.cc?.length) lines.push(formatHeader('Cc', input.cc.map(formatAddress).join(', ')));
+  lines.push(formatHeader('Subject', encodeHeaderValue(input.subject)));
+  lines.push(formatHeader('Date', formatDate(input.date ?? new Date())));
+  lines.push(formatHeader('Message-ID', input.messageId ?? `<${generateUUID()}@pgp.local>`));
+  if (input.inReplyTo) lines.push(formatHeader('In-Reply-To', input.inReplyTo));
+  if (input.references?.length) lines.push(formatHeader('References', input.references.join(' ')));
+  lines.push('MIME-Version: 1.0');
+  
+  lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
+  lines.push('');
+
+  // IMPORTANT: Le premier boundary suivi de CRLF
+  // Il ne faut surtout pas rajouter de CRLF supplémentaire après ce boundary car clearMimeBytes contient déjà ses propres headers !
+  const prefixString = lines.join(CRLF) + CRLF + `--${boundary}` + CRLF;
+  const initialHeaderBytes = new TextEncoder().encode(prefixString);
+
+  const closingBytes = new TextEncoder().encode(`${CRLF}--${boundary}--${CRLF}`);
+  
+  return new Blob([initialHeaderBytes, clearMimeBytes as BlobPart, closingBytes], { type: 'application/octet-stream' });
 }
 
 // ── Low-Level Format Helpers  ─────────────────

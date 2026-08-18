@@ -13,7 +13,7 @@ import {
 } from '../../../storage.ts';
 
 import { importOpenPgpPrivateKey, importOpenPgpPublicKey, unlockPrivateKey } from '../../../pgp/import.ts';
-import { encryptPassphraseWithWebAuthn, decryptPassphraseWithWebAuthn } from '../../../webauthn/settings.ts';
+import { encryptPassphraseWithWebAuthn, decryptPassphraseWithWebAuthn, unlockWithWebAuthnRegisteredKeys } from '../../../webauthn/settings.ts';
 
 import { 
   fetchKeyFromBackground, 
@@ -24,6 +24,7 @@ import {
 import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
 import { AccountEntry, bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
 import { changePassword } from '../../../pgp/change-passphrase.ts';
+import { settings } from '../../../shared.ts';
 import { getMasterPass } from '../../../aurion/session-broadcast.ts';
 import { fetchCryptDriveSecret } from '../../../aurion/cryptpad/utils.ts';
 import { processSecret, sendToBridgeIframe } from '../../../aurion/secrets/sender.ts';
@@ -198,17 +199,47 @@ export function useSettingsLogic() {
         ? bufferToBytes(existingKeyWithWebAuthn.webauthn.credentialId)
         : undefined;
 
-      const response = await host.crypto.getOrCreateWebAuthn(masterCredIdBytes, 'bulwark-webmail-pgp-true-e2e', 'Master Key for Bulwark PGP Plugin');
+      // 1. Initiate passkey creation
+      let response = await host.crypto.createWebAuthn(
+        'bulwark-webmail-pgp-true-e2e', 
+        'Master Key for Bulwark PGP Plugin'
+      );
+      let credentialId: number[] = [];
+      let prfSecret: number[] = []; 
+
+      // 2. Handle iOS/Safari fallback requiring a fresh user gesture
+      if (response.success === false && response.reason === 'NEEDS_USER_ACTION') {
+        const userConfirmed = await host.ui.confirm({
+          title: 'Passkey Created',
+          message: 'Your key was saved. Click OK to unlock and complete setup.'
+        });
+
+        if (userConfirmed && response.credentialId) {
+          // Pass the credentialId obtained during creation to retrieve the PRF secret
+          const newResponse = await host.crypto.getWebAuthn(response.credentialId);
+          credentialId = newResponse.credentialId;
+          prfSecret = newResponse.prfSecret;
+        } else {
+          // User cancelled the confirmation modal
+          return { success: false, reason: 'User cancelled secondary verification.' };
+        }
+      }else if(response.credentialId && response.prfSecret){
+          credentialId = response.credentialId;
+          prfSecret = response.prfSecret;
+      }
+
+      // 3. Handle failure or process success
+      if (!response || ('success' in response && response.success === false)) {
+        console.error('Failed to setup WebAuthn key:', response.reason);
+        return;
+      }
       
-      const credentialId = bytesToBuffer(response.credentialId);
-      const prfSecret = bytesToBuffer(response.prfSecret);
-      
-      const { ciphertext, iv } = await encryptPassphraseWithWebAuthn(passphrase, prfSecret);
+      const { ciphertext, iv } = await encryptPassphraseWithWebAuthn(passphrase, bytesToBuffer(prfSecret));
 
       await saveKeyRecord({
         ...rec,
         webauthn: {
-          credentialId,
+          credentialId : bytesToBuffer(credentialId),
           encryptedPassphrase: ciphertext,
           iv: iv.buffer.slice(0) as ArrayBuffer
         }
@@ -228,35 +259,28 @@ export function useSettingsLogic() {
   }
 
   async function handleUnlockAllWithWebAuthn() {
-    const webauthnKeys = keys.filter(k => k.webauthn && !unlocked[k.id]);
-    if (webauthnKeys.length === 0) return;
+    await unlockWithWebAuthnRegisteredKeys(keys, unlocked, setBusy, refresh);
+  }
+
+  async function removeWebAuthnLink(rec: KeyRecord) {
+    const ok = await host.ui.confirm({
+      title: host.i18n.t('settings.confirm.remove_webauthn_title'),
+      message: host.i18n.t('settings.confirm.remove_webauthn_msg', { identity: rec.email || host.i18n.t('settings.label.generic_identity') }),
+      danger: true,
+      confirmLabel: host.i18n.t('settings.action.remove'),
+    });
+    if (!ok) return;
 
     setBusy(true);
     try {
-      const firstWebAuthnKey = webauthnKeys[0].webauthn!;
-      const masterCredIdBytes = bufferToBytes(firstWebAuthnKey.credentialId);
-
-      const response = await host.crypto.getOrCreateWebAuthn(masterCredIdBytes);
-      const prfSecret = bytesToBuffer(response.prfSecret);
-      
-      for (const rec of webauthnKeys) {
-        if (!rec.webauthn) continue;
-
-        const realPassphrase = await decryptPassphraseWithWebAuthn(
-          rec.webauthn.encryptedPassphrase,
-          prfSecret,
-          rec.webauthn.iv
-        );
-
-        const { unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey } = await unlockPrivateKey(rec, realPassphrase);
-        
-        broadcastUnlockKey({ id: rec.id, unlockedPrivateKey, signingKey, decryptionKey, aesKey, hmacKey });
-      }
-
-      host.toast.success(host.i18n.t('settings.success.unlock_all_webauthn'));
+      await saveKeyRecord({
+        ...rec,
+        webauthn: undefined
+      });
+      host.toast.success(host.i18n.t('settings.success.webauthn_removed'));
       await refresh();
     } catch (err: any) {
-      host.toast.error(host.i18n.t('settings.error.unlock_all_failed', { message: err?.message || String(err) }));
+      host.toast.error(host.i18n.t('settings.error.generic_failure', { message: err.message }));
     } finally {
       setBusy(false);
     }
@@ -670,12 +694,26 @@ export function useSettingsLogic() {
             return;
           }
       const { codeFormatted, codeRaw } = generateNumericRecoveryCode();
-      const { privateKey, revocationCertificate } = await openpgp.generateKey({
-        type: 'curve25519',
-        userIDs: [{ name: data.name, email: data.email }],
-        passphrase: data.pass,
-        format: 'armored'
-      });
+      let privateKey: string;
+      let revocationCertificate: string;
+
+      if (settings().useCurve25519 == true) {
+        ({ privateKey, revocationCertificate } = await openpgp.generateKey({
+          type: 'curve25519',
+          userIDs: [{ name: data.name, email: data.email }],
+          passphrase: data.pass,
+          subkeys: [{ type: 'curve25519' }],
+          format: 'armored'
+        }));
+      } else {
+        ({ privateKey, revocationCertificate } = await openpgp.generateKey({
+          type: 'rsa',
+          rsaBits: 4096,
+          userIDs: [{ name: data.name, email: data.email }],
+          passphrase: data.pass,
+          format: 'armored'
+        }));
+      }
       //if there is not default key, set this one as default
       // Check for an existing default key
       const hasDefaultKey = keys.some(k => k.default);
@@ -902,6 +940,7 @@ export function useSettingsLogic() {
     handleExportJSON,
     handleImportJSON,
     changePass,
-    handleDownloadKey
+    handleDownloadKey,
+    removeWebAuthnLink
   };
 }

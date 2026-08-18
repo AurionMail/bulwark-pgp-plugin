@@ -1,7 +1,8 @@
 import { unlockPrivateKey } from "../pgp/import.ts";
 import { broadcastUnlockKey } from "../pgp/session-broadcast.ts";
-import { getAllDefaultKeyRecords, getDefaultKeyRecord } from "../storage.ts";
+import { getAllDefaultKeyRecords, getDefaultKeyRecord, listKeyRecords } from "../storage.ts";
 import host from '@plugin-host';
+import { unlockWithWebAuthnRegisteredKeys } from "../webauthn/settings.ts";
 
 export async function askForDefaultKeyPass(type: 'default' | 'all'): Promise<void> {
   let defaultKeys;
@@ -10,8 +11,32 @@ export async function askForDefaultKeyPass(type: 'default' | 'all'): Promise<voi
   } else {
     defaultKeys = await getAllDefaultKeyRecords();
   }
+  const allKeys = await listKeyRecords();
+  // separate between keys which have webauthn and those which don't
+  // for webauthn, because we will decrypt a fisrt time, i think  we can decrypt all webauthn, 
+  // even thoses which are not default, because we will use the same prfSecret to decrypt all of them
+  const webauthnKeys = allKeys.filter(k => k?.webauthn);
+  let nonWebauthnKeys = defaultKeys.filter(k => k && !k.webauthn);
 
-  for (const defaultKey of defaultKeys) {
+  if (webauthnKeys.length > 0) {
+    const result = await host.ui.confirm({
+      title: host.i18n.t('prompt.unlock_default_key.webauthn_title'),
+      message: host.i18n.t('prompt.unlock_default_key.webauthn_message'),
+    });
+    if(result){
+      await unlockWithWebAuthnRegisteredKeys(webauthnKeys as any, {});
+      host.ui.rerenderFetchedEmails();
+    }else{
+      nonWebauthnKeys = defaultKeys;
+    }
+
+  }
+
+  if (nonWebauthnKeys.length === 0) {
+    return;
+  }
+
+  for (const defaultKey of nonWebauthnKeys) {
     if (!defaultKey) continue;
 
     const result = await host.ui.prompt({
