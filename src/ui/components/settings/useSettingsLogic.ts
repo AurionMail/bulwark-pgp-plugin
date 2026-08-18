@@ -885,6 +885,12 @@ export function useSettingsLogic() {
         await persistPassphraseToDangerousStorage(rec.id, result.newPassphrase);
       }
 
+      await host.ui.confirm({
+        title: host.i18n.t('settings.popup_title'),
+        message: host.i18n.t('settings.popup_message'),
+        confirmLabel: host.i18n.t('settings.action.ok'),
+      });
+
       host.ui.openExternalUrl(cryptpadDomain + '/drive');
       host.user.logout();
       

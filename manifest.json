@@ -158,6 +158,8 @@
   },
   "locales": {
     "en": {
+      "settings.popup_title": "Popup",
+      "settings.popup_message": "To continue, please make sure to allow the popup to open. This is required, if you do not allow this popup, you will lose data of Cryptpad.",
       "banner.signed_valid": "Signature valid",
       "banner.signed_invalid": "Signature invalid",
       "banner.encrypted": "Encrypted message",
