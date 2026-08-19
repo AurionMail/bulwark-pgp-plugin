@@ -151,6 +151,7 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(MIGRATIONS_STORE)) {
         db.createObjectStore(MIGRATIONS_STORE, { keyPath: 'version' });
+      }
       if (!db.objectStoreNames.contains(AURION_DATA)) {
         db.createObjectStore(AURION_DATA);
       }

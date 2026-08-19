@@ -108,12 +108,6 @@ export async function activate(api :any) {
     return;
   }
 
-  const dbVersion = await getCurrentDbVersion();
-  if (dbVersion < 2) {
-    api.log.info(`Detected old database version ${dbVersion}. Running migration to 2.0.0...`);
-    await main();
-    await recordMigration(2, 'Migration to 2.0.0: Assign keys to accounts and remove message cache.');
-  }
 
   let locked = true;
   initBackgroundSessionListener();
