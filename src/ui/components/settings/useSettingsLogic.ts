@@ -484,7 +484,7 @@ export function useSettingsLogic() {
   }
 
   async function lock(rec: KeyRecord) {
-    broadcastLockKey();
+    broadcastLockKey(rec.id);
     host.toast.info(host.i18n.t('settings.info.key_locked', { identity: rec.email || host.i18n.t('settings.label.generic_key') }));
     await refresh();
   }
@@ -511,7 +511,7 @@ export function useSettingsLogic() {
     });
 
       if (reallyOk && reallyOk.confirmText === rec.email) {
-        broadcastLockKey();
+        broadcastLockKey(rec.id);
         await deleteKeyRecord(rec.id);
         if (rec.recoverable) await deleteKeyRecord(rec.id + '_recovery');
         //delete public jey associated by serahcing by email
