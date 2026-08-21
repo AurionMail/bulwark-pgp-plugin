@@ -192,13 +192,15 @@ export function useSettingsLogic() {
         ? bufferToBytes(existingKeyWithWebAuthn.webauthn.credentialId)
         : undefined;
 
+      let credentialId: number[] = [];
+      let prfSecret: number[] = []; 
+
+      if(!masterCredIdBytes) {
       // 1. Initiate passkey creation
       let response = await host.crypto.createWebAuthn(
         'bulwark-webmail-pgp-true-e2e', 
         'Master Key for Bulwark PGP Plugin'
       );
-      let credentialId: number[] = [];
-      let prfSecret: number[] = []; 
 
       // 2. Handle iOS/Safari fallback requiring a fresh user gesture
       if (response.success === false && response.reason === 'NEEDS_USER_ACTION') {
@@ -225,6 +227,13 @@ export function useSettingsLogic() {
       if (!response || ('success' in response && response.success === false)) {
         console.error('Failed to setup WebAuthn key:', response.reason);
         return;
+      }
+
+      } else {
+        // If we have an existing master credential, use it to get the PRF secret
+        credentialId = masterCredIdBytes;
+        const response = await host.crypto.getWebAuthn(masterCredIdBytes);
+        prfSecret = response.prfSecret;
       }
       
       const { ciphertext, iv } = await encryptPassphraseWithWebAuthn(passphrase, bytesToBuffer(prfSecret));
