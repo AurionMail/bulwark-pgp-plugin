@@ -10,7 +10,7 @@ import host from '@plugin-host';
 import { base64ToBuffer, bufferToBase64, getCurrentAccountId } from "./util.ts";
 
 const DB_NAME = 'pgp-plugin-store';
-const DB_VERSION = 12;
+const DB_VERSION = 13;
 const KEY_RECORDS_STORE = 'key-records';
 const PUBLIC_CERTS_STORE = 'public-certs';
 const SESSION_KEYS_STORE = 'session-keys';
@@ -126,6 +126,9 @@ function openDB(): Promise<IDBDatabase> {
       }
       if (!db.objectStoreNames.contains(SESSION_KEYS_STORE)) {
         db.createObjectStore(SESSION_KEYS_STORE, { keyPath: 'id' });
+      }
+      if (!db.objectStoreNames.contains(RECIPIENTS_STORE)) {
+        db.createObjectStore(RECIPIENTS_STORE, { keyPath: 'email' });
       }
       if (!db.objectStoreNames.contains(MESSAGE_CACHE_STORE)) {
         const store = db.createObjectStore(MESSAGE_CACHE_STORE, { keyPath: 'id' });

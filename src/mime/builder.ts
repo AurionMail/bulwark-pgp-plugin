@@ -6,7 +6,6 @@
 
 import { createMimeMessage } from 'mimetext/browser';
 import { generateUUID } from '../util.ts';
-import host from '@plugin-host';
 
 const CRLF = '\r\n';
 function stripEnvelopeHeaders(rawMime: string): string {
@@ -106,7 +105,6 @@ export function buildMimeMessage(input: any, withHeaders: boolean = true): Uint8
     rawMimeString = stripEnvelopeHeaders(rawMimeString);
   }
 
-  // FORCE la canonisation CRLF (\r\n) pour respecter la RFC 3156
   const canonicalMimeString = rawMimeString.replace(/\r?\n/g, CRLF);
 
   return new TextEncoder().encode(canonicalMimeString);
@@ -224,7 +222,6 @@ export function wrapAsNormalMessage(
   const boundary = generateBoundary();
   const lines: string[] = [];
 
-  // En-têtes de l'enveloppe extérieure
   lines.push(formatHeader('From', formatAddress(input.from)));
   const toEntries = Array.isArray(input.to) ? input.to : [input.to];
   const cleanTo = toEntries
@@ -243,8 +240,7 @@ export function wrapAsNormalMessage(
   lines.push(`Content-Type: multipart/alternative; boundary="${boundary}"`);
   lines.push('');
 
-  // IMPORTANT: Le premier boundary suivi de CRLF
-  // Il ne faut surtout pas rajouter de CRLF supplémentaire après ce boundary car clearMimeBytes contient déjà ses propres headers !
+  // We must not add an extra CRLF after this boundary because clearMimeBytes already contains its own headers!
   const prefixString = lines.join(CRLF) + CRLF + `--${boundary}` + CRLF;
   const initialHeaderBytes = new TextEncoder().encode(prefixString);
 
@@ -264,7 +260,8 @@ function generateBoundary() {
 function formatAddress(addr: { name?: string; addr: string }) {
   if (addr.name) {
     const escaped = addr.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    return `"${escaped}" <${addr.addr}>`;
+    const encodedName = encodeHeaderValue(escaped);
+    return `"${encodedName}" <${addr.addr}>`;
   }
   return addr.addr;
 }
@@ -316,12 +313,14 @@ function formatDate(date: Date) {
 function base64EncodeRaw(data: ArrayBuffer | Uint8Array) {
   const bytes = new Uint8Array(data);
   let binary = '';
-  const chunkSize = 8192; // Traitement par blocs de 8Ko (évite le max call stack size)
+  const chunkSize = 8192; // blocs of 8Ko (avoid max call stack size)
   
   for (let i = 0; i < bytes.length; i += chunkSize) {
     const chunk = bytes.subarray(i, i + chunkSize);
-    // @ts-ignore (le spread operator passe très bien ici)
+    // @ts-ignore 
     binary += String.fromCharCode.apply(null, chunk);
   }
-  return btoa(binary);
+  const rawBase64 = btoa(binary);
+  
+  return rawBase64.match(/.{1,76}/g)?.join(CRLF) ?? rawBase64;
 }
