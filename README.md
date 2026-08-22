@@ -2,7 +2,7 @@
 > [!CAUTION]
 > Migration to 2.0.0 : For users with > 1 accounts at same time: the index/preview will be reinitialized. You will have to re populate it by decrypting emails. More details about the migration here : https://github.com/paulhenry46/pgp-plugin/pull/17
 
-End-to-end PGP for Bulwark Webmail, implemented as a **privileged** (same-origin) plugin. All cryptography runs locally in the browser : no key material ever leaves your device.
+End-to-end PGP for Bulwark Webmail. All cryptography runs locally in the browser.
 
 ## Main Features
 

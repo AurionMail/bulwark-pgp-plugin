@@ -599,7 +599,7 @@ export function useSettingsLogic() {
   }
 }
 
-  async function handleSetServerSideEncryption(k: KeyRecord) {
+  async function handleSetServerSideEncryption(k: KeyRecord, embeded: boolean = false) {
   setBusy(true);
   try {
       const pkey = k.publicKey;
@@ -626,8 +626,9 @@ export function useSettingsLogic() {
         return saveKeyRecord(updatedKey);
       })
     );
-
-    await refresh();
+    if(!embeded){
+      await refresh();
+    }
   } catch (err) {
     const error = err as Error;
     host.toast.error(host.i18n.t('settings.error.generic', { message: error?.message ? error.message : String(err) }));
@@ -678,7 +679,7 @@ export function useSettingsLogic() {
       setBusy(false);
     }
   }
-  async function handleGenerateKey(overrideGen?: { name: string, email: string, pass: string }, withRecovery: boolean = true) {
+  async function handleGenerateKey(overrideGen?: { name: string, email: string, pass: string }, withRecovery: boolean = true, autoAddToServerSideEncryption: boolean = false) {
 
     let data = gen as {name: string, email: string, pass: string}
     if(overrideGen?.email){
@@ -728,11 +729,16 @@ export function useSettingsLogic() {
       const hasDefaultKey = keys.some(k => k.default);
       const keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
 
+      if(autoAddToServerSideEncryption){
+        await handleSetServerSideEncryption(keyRecord);
+      }
+
       // Save the key record with the appropriate flags
       await saveKeyRecord({
         ...keyRecord,
         default: !hasDefaultKey,
         recoverable: withRecovery,
+        serverSide: autoAddToServerSideEncryption
       });
 
     const unlockedSession = await unlockPrivateKey(keyRecord, data.pass);
