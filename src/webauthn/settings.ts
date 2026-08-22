@@ -44,7 +44,7 @@ export async function unlockWithWebAuthnRegisteredKeys(keys : KeyRecord[], unloc
         
         for (const rec of webauthnKeys) {
           if (!rec.webauthn) continue;
-          if(rec.webauthn.credentialId !== firstWebAuthnKey.credentialId) {
+          if(bufferToBytes(rec.webauthn.credentialId).join(',') !== masterCredIdBytes.join(',')) {
             host.log.warn(`Skipping key ${rec.id} (${rec.email}) because its WebAuthn credential ID does not match the first key's credential ID`);
             continue;
           }

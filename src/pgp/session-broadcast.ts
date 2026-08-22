@@ -14,7 +14,7 @@ type SessionMessage =
   | { type: 'PONG_STATUS'; requestId: string; isUnlocked: boolean }
   | { type: 'SET_KEY'; keyEntry: SessionKeysEntry }
   | { type: 'KEY_UPDATED'; isUnlocked: boolean }
-  | { type: 'CLEAR_KEY' }
+  | { type: 'CLEAR_KEY'; id: string }
   | { type: 'REQUEST_KEY_DATA'; requestId: string; keyId: string }
   | { type: 'RESPONSE_KEY_DATA'; requestId: string; keyEntry: SessionKeysEntry | null }
   | { type: 'INITIALIZE_RAM_INDEX'; decryptedIndex: Record<string, DecryptedCachePayload> }
@@ -49,7 +49,12 @@ export function initBackgroundSessionListener(): void {
         break;
 
       case 'CLEAR_KEY':
-        _backgroundSessionKeys = {};
+        // remove keyId from _backgroundSessionKeys if provided, otherwise clear all keys
+        if (msg.id) {
+          delete _backgroundSessionKeys[msg.id];
+        }else{
+          _backgroundSessionKeys = {};
+        }
         channel.postMessage({ type: 'KEY_UPDATED', isUnlocked: false });
         break;
     
@@ -172,9 +177,9 @@ export function broadcastUnlockKey(keyEntry: SessionKeysEntry): void {
   channel.close();
 }
 
-export function broadcastLockKey(): void {
+export function broadcastLockKey(keyId: string): void {
   const channel = new BroadcastChannel(CHANNEL_NAME);
-  channel.postMessage({ type: 'CLEAR_KEY' });
+  channel.postMessage({ type: 'CLEAR_KEY', id: keyId });
   channel.close();
 }
 
