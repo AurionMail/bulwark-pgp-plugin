@@ -8,7 +8,7 @@ const { useState } = React;
 interface OnboardingFlowProps {
   busy: boolean;
   onImportClick: () => void;
-  onGenerate: (name: string, email: string, pass: string) => void;
+  onGenerate: (name: string, email: string) => void;
   onJsonImport: () => void;
 }
 
@@ -21,7 +21,6 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }
   const [step, setStep] = useState<number>(1);
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
-  const [pass, setPass] = useState<string>('');
   const [identityOptions, setIdentityOptions] = useState<UnifiedIdentityOption[]>([]);
   const [loadingIdentities, setLoadingIdentities] = useState<boolean>(false);
 
@@ -108,9 +107,7 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }
         'To get started, you need a private key. You can either import an existing one or generate a new keypair.'
       ),
       h('div', { style: { display: 'flex', gap: '12px', marginTop: '8px' } },
-        h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: onImportClick }, 'Upload Existing Key'),
         h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: () => setStep(3) }, 'Generate New Key'),
-        h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: onJsonImport }, 'Import from JSON')
       )
     );
   }
@@ -156,23 +153,14 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }
         value: name, 
         onChange: (e: React.ChangeEvent<HTMLInputElement>) => setName(e.target.value), 
         style: inputStyle 
-      }),
-
-      h('input', { 
-        type: 'password', 
-        placeholder: 'Secure Passphrase', 
-        required: true, 
-        value: pass, 
-        onChange: (e: React.ChangeEvent<HTMLInputElement>) => setPass(e.target.value), 
-        style: inputStyle 
       })
     ),
     h('div', { style: { display: 'flex', justifyContent: 'space-between' } },
       h('button', { className: 'composer-btn', disabled: busy, onClick: () => setStep(3) }, 'Back'),
       h('button', { 
         className: 'composer-btn', 
-        disabled: busy || !email || !pass, 
-        onClick: () => onGenerate(name, email, pass) 
+        disabled: busy || !email, 
+        onClick: () => onGenerate(name, email) 
       }, 'Generate & Download Backup')
     )
   );

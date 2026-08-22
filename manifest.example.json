@@ -105,13 +105,10 @@
       "default": true
     },
     "askForDefaultKeyPassOnActivated": {
-      "type": "select",
+      "type": "boolean",
       "label": "Ask for the passphrase when booting the app.",
-      "description": "Ask for the passphrase to unlock your default key when booting the app, for default account or all accounts.",
-      "default": "false",
-      "options": [
-        "false", "default", "all"
-      ]
+      "description": "Ask for the passphrase decrypting your default key when booting the app. Avoid to go to settings to manually unlock your key.",
+      "default": false
     },
     "alwaysSendPubKey": {
       "type": "boolean",
@@ -148,18 +145,10 @@
       "label": "Lock keys on logout",
       "description": "Whether to lock all keys when the user logs out. This is used only when StoreDangerous is enabled. This is useful if you want to avoid leaving unlocked keys in memory when the user logs out.",
       "default": false
-    },
-    "useCurve25519": {
-      "type": "boolean",
-      "label": "Use Curve25519 for key generation",
-      "description": "Whether to use Curve25519 for key generation. This is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail.",
-      "default": true
     }
   },
   "locales": {
     "en": {
-      "settings.popup_title": "Popup",
-      "settings.popup_message": "To continue, please make sure to allow the popup to open. This is required, if you do not allow this popup, you will lose data of Cryptpad.",
       "banner.signed_valid": "Signature valid",
       "banner.signed_invalid": "Signature invalid",
       "banner.encrypted": "Encrypted message",
@@ -181,7 +170,7 @@
       "settings.action.lock": "Lock this key",
       "settings.action.unlock": "Unlock this key",
       "settings.action.delete": "Delete this key",
-      "settings.action.upload_server": "Enable server-side encryption with this key",
+      "settings.action.upload_server": "Upload this key to server and enable server-side encryption with this key",
       "settings.add_private_key": "Add a private key",
       "settings.public_keys_title": "Recipient public keys",
       "settings.public_keys_desc": "Public keys (ASCII Armored) of contacts you send encrypted mail to.",
@@ -272,9 +261,7 @@
       "settings.json_backup_title": "JSON Backup",
       "settings.json_backup_desc": "Export all your OpenPGP keys and settings as a JSON file. This file is encrypted with your default key's passphrase, so keep it safe.",
       "settings.export_json": "Export to JSON",
-      "settings.export_json_account": "Export to JSON for this account",
       "settings.import_json": "Import from JSON",
-      "settings.import_json_account": "Import from JSON for this account",
       "settings.search_public_key": "Search public key",
       "settings.success.json_imported": "Plugin data imported successfully!",
       "settings.error.json_import_failed": "JSON import failed: {message}",
@@ -292,8 +279,7 @@
       "banner.title_signed": "Digital Signature",
       "banner.encrypted_label": "Encryption State",
       "banner.sig_label": "Signature State",
-      "banner.decrypted_success": "End-to-end decryption successful",
-      "banner.encrypted_server": "Automatically encrypted by Stalwart",
+      "banner.decrypted_success": "Successfully decrypted",
       "banner.encrypted_locked": "Encrypted message (key locked)",
       "banner.encrypted_prefix": "Decryption error: ",
       "banner.processing": "Verifying...",
@@ -331,19 +317,7 @@
       "prompt.block_until_default_key_is_available.message_sending": "Your organisation has enabled the 'Block until default key is available' option, but your default key is not unlocked. Please unlock your default key in OpenPGP settings to continue. You will not be able to send emails until your default key is unlocked. This email was NOT sent.",
       "settings.confirm.delete_private_confirm_label": "Type the email of the key to confirm deletion: ",
       "settings.persisted_badge": "Persisted",
-      "settings.server_side_badge": "Used for server encryption ",
-      "settings.action.options": "More options",
-      "settings.action.change_passphrase": "Change passphrase",
-      "settings.pro_mode_desc": "Display all keys (all accounts)",
-      "settings.pro_mode_title": "Pro Mode",
-      "settings.account_mode_desc": "Keys for account",
-      "prompt.unlock_default_key.webauthn_title": "Unlock your keys with WebAuthn",
-      "prompt.unlock_default_key.webauthn_message": "Continue to use WebAuthn to unlock your keys. If you cancel, you will have to unlock your keys manually with your passphrase.",
-      "settings.confirm.remove_webauthn_title": "Remove WebAuthn",
-      "settings.confirm.remove_webauthn_msg": "Are you sure you want to remove WebAuthn for this key? You will have to unlock your key with your passphrase.",
-      "settings.success.webauthn_removed": "WebAuthn removed for this key",
-      "settings.action.remove_webauthn": "Remove WebAuthn",
-      "settings.action.remove": "Remove"
+      "settings.server_side_badge": "Used for server encryption "
     }
   }
 }

@@ -57,9 +57,9 @@ const {
         busy: busy,
         onImportClick: () => fileRef.current && fileRef.current.click(),
         onJsonImport: () => jsonFileRef.current && jsonFileRef.current.click(),
-        onGenerate: (name, email, pass) => {
+        onGenerate: (name, email) => {
           // Fire the modified generation logic
-          void handleGenerateKey({ name, email, pass });
+          void handleGenerateKey({ name, email, pass: '' });
         }
       })
     );
