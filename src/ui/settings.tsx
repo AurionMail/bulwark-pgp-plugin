@@ -59,7 +59,7 @@ const {
         onJsonImport: () => jsonFileRef.current && jsonFileRef.current.click(),
         onGenerate: (name, email) => {
           // Fire the modified generation logic
-          void handleGenerateKey({ name, email, pass: '' });
+          void handleGenerateKey({ name, email, pass: '' }, false, true);
         }
       })
     );
