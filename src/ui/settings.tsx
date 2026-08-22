@@ -13,7 +13,7 @@ const {
   accounts,
     selectedAccountId,
     selectAccount,
-    keys, certs, unlocked, persisted, busy,
+    keys, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
     searchEmail, setSearchEmail, gen, setGen,
     refresh,
@@ -26,7 +26,6 @@ const {
     handleUploadKey,
     handleSearchAndImportKey,
     importCertFile,
-    removeCert,
     lock,
     removeKey,
     handleSetDefaultPrivateKey,
@@ -244,21 +243,17 @@ const {
         accounts={accounts}
         selectedAccountId={selectedAccountId}
         onremoveWebAuthnLink={removeWebAuthnLink}
+        onUploadKey={handleUploadKey}
+        onDownloadKey={handleDownloadKey}
       />
 
       <PublicKeysSection
-        certs={certs}
         busy={busy}
         certFileRef={certFileRef}
         searchEmail={searchEmail}
         setSearchEmail={setSearchEmail}
-        onRemoveCert={removeCert}
-        onUploadKey={handleUploadKey}
         onImportCertFile={importCertFile}
         onSearchAndImportKey={handleSearchAndImportKey}
-        selectedAccountId={selectedAccountId}
-        accounts={accounts}
-        onDownloadKey={handleDownloadKey}
       />
 
       <BackupSection

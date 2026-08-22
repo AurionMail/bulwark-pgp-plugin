@@ -27,6 +27,8 @@ interface PrivateKeysSectionProps {
   onFileChange: () => void;
   onGenerateKey: () => void;
   onChangePass: (rec: KeyRecord) => void;
+  onUploadKey: (c: KeyRecord) => void;
+  onDownloadKey: (c: KeyRecord) => void;
 }
 
 export function PrivateKeysSection({
@@ -50,7 +52,9 @@ export function PrivateKeysSection({
   onChangePass,
   selectedAccountId,
   accounts,
-  onremoveWebAuthnLink
+  onremoveWebAuthnLink,
+  onUploadKey,
+  onDownloadKey,
 }: PrivateKeysSectionProps) {
   const visibleKeys = keys.filter((rec) => !rec.recovery);
   const hasWebAuthnLockedKeys = keys.some((k) => k.webauthn && !unlocked[k.id]);
@@ -223,7 +227,7 @@ export function PrivateKeysSection({
                           </button>
                         )}
 
-                        {/* Secours / Recovery */}
+                        {/* Recovery */}
                         {!unlocked[rec.id] && rec.recoverable && (
                           <button
                             type="button"
@@ -257,6 +261,63 @@ export function PrivateKeysSection({
                             <span>{host.i18n.t('settings.action.change_passphrase')}</span>
                           </button>
                         )}
+                        {/* Download / Upload Public key*/}
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="menu-item"
+                            disabled={busy}
+                            onClick={() => {
+                              onUploadKey(rec);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                            <svg
+                    xmlns="http://www.w3.org/2000/svg"
+                    width="1rem"
+                    height="1rem"
+                    viewBox="0 0 24 24"
+                    fill="none"
+                    stroke="currentColor"
+                    strokeWidth="2"
+                    strokeLinecap="round"
+                    strokeLinejoin="round"
+                  >
+                    <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                    <polyline points="17 8 12 3 7 8" />
+                    <line x1="12" y1="3" x2="12" y2="15" />
+                  </svg>
+                            <span>{host.i18n.t('settings.action.upload_public_key')}</span>
+                          </button>
+                        
+                        <button
+                            type="button"
+                            role="menuitem"
+                            className="menu-item"
+                            disabled={busy}
+                            onClick={() => {
+                              onDownloadKey(rec);
+                              setOpenMenuId(null);
+                            }}
+                          >
+                  <svg
+                  xmlns="http://www.w3.org/2000/svg"
+                  width="1rem"
+                  height="1rem"
+                  viewBox="0 0 24 24"
+                  fill="none"
+                  stroke="currentColor"
+                  strokeWidth="2"
+                  strokeLinecap="round"
+                  strokeLinejoin="round">
+                  <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4" />
+                  <polyline points="7 10 12 15 17 10" />
+                  <line x1="12" y1="15" x2="12" y2="3" />
+                </svg>
+
+                            <span>{host.i18n.t('settings.action.download_public_key')}</span>
+                          </button>
+                        
 
                         {/* WebAuthn */}
                         {!rec.webauthn && (
