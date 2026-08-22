@@ -74,3 +74,10 @@ export interface MimeParsedAttachment {
   size: number;
   dataUrl: string;
 }
+
+export interface WkdResult {
+  status: 'FOUND' | 'NOT_FOUND' | 'ERROR';
+  rawKey?: ArrayBuffer;
+  error?: string;
+  type?: 'ARMORED' | 'BINARY';
+}
