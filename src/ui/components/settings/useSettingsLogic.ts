@@ -438,11 +438,10 @@ export function useSettingsLogic() {
       setBusy(false);
     }
   }
-  async function handleUploadKey(c: PublicCert) {
+  async function handleUploadKey(c: PublicCert | KeyRecord) {
     setBusy(true);
     try {
-      // @ts-ignore - récupère le texte de la clé publique (ajuste selon ton type exact c.publicKey ou c.armored)
-      const armored = c.publicKey || c.armored; 
+      const armored = c.publicKey; 
       if (!armored) throw new Error(host.i18n.t('settings.error.no_armored_key'));
 
       const res = await uploadKey(armored);
@@ -837,7 +836,7 @@ export function useSettingsLogic() {
     }
   }
 
-  async function handleDownloadKey(c: PublicCert)  {
+  async function handleDownloadKey(c: PublicCert | KeyRecord) {
     try {
       const armored = c.publicKey; 
       if (!armored) throw new Error(host.i18n.t('settings.error.no_armored_key'));
