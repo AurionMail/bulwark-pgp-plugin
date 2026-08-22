@@ -2,7 +2,7 @@ import * as openpgp from 'openpgp';
 import { argon2id } from 'hash-wasm';
 import { ContactEmail, generateUUID, getCurrentAccountId } from '../util.ts';
 import { extractKeyInfo } from './key-utils.ts';
-import { KeyRecord, listPublicCerts, persistPassphraseToDangerousStorage, savePublicCert } from '../storage.ts';
+import { KeyRecord, persistPassphraseToDangerousStorage } from '../storage.ts';
 import { KDF_ITERATIONS, AES_KEY_LENGTH, settings, config } from '../shared.ts';
 import { deriveAesKeyFromPgpParams, getIndex } from '../cache.ts';
 import { type ContactCard } from '../util.ts';
@@ -105,24 +105,7 @@ export async function importOpenPgpPrivateKey(
   };
 
   if (keyInfo.armoredPublicKey) {
-    const existingCerts = await listPublicCerts();
-    const alreadyExists = existingCerts.some((c) => c.fingerprint === keyInfo.fingerprint);
-    
-    if (!alreadyExists) {
-      await savePublicCert({
-        id: generateUUID(),
-        accountId,
-        email,
-        publicKey: keyInfo.armoredPublicKey,
-        issuer: keyRecord.issuer,
-        subject: keyRecord.subject,
-        notBefore: keyRecord.notBefore,
-        notAfter: keyRecord.notAfter,
-        fingerprint: keyRecord.fingerprint,
-        source: 'private-key',
-      });
-    }
-    // import in contacts too to check our signature in 'sent' folder
+    // import in contacts too to check our signature in 'sent' folder // TODO check if exists before
     await importOpenPgpPublicKey(keyInfo.armoredPublicKey);
   }
 
