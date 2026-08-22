@@ -6,7 +6,6 @@
 import * as openpgp from 'openpgp';
 import host from '@plugin-host';
 import { importOpenPgpPublicKey } from './import.ts';
-import { listPublicCerts } from '../storage.ts';
 import { contacts } from '@plugin-host';
 import { ContactCard, ContactEmail } from '../util.ts';
 // ── Helpers & Conversions ───────────────────────────────────────────

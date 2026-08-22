@@ -122,6 +122,8 @@ export async function importOpenPgpPrivateKey(
         source: 'private-key',
       });
     }
+    // import in contacts too to check our signature in 'sent' folder
+    await importOpenPgpPublicKey(keyInfo.armoredPublicKey);
   }
 
   return { keyRecord, keyInfo };
