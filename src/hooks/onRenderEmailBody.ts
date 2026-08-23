@@ -9,7 +9,6 @@ import { decodePgpUri, extractKeyInfo, scanAndImportKeysFromAttachments } from '
 
 import { addrList, ContactCryptoKey, ContactEmail} from '../util.ts';
 import { VERIFY_PREFIX, STATE_PREFIX} from '../shared.ts';
-import { listPublicCerts } from '../storage.ts';
 import {unlockedDecryptMaps} from '../util.ts';
 import { isCapable } from '../index.tsx';
 import { indexAndPersistDecryptedMail } from '../cache.ts';

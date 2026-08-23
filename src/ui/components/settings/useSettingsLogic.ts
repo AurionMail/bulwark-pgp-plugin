@@ -3,7 +3,7 @@ import * as openpgp from 'openpgp';
 import React from 'react'
 const { useState, useEffect, useCallback, useRef } = React;
 import {
-  saveKeyRecord, listKeyRecords, deleteKeyRecord, listPublicCerts, deletePublicCert,
+  saveKeyRecord, listKeyRecords, deleteKeyRecord,
   KeyRecord, PublicCert, exportPluginData, importPluginData,
   getKeyRecord,
   loadDangerousPassphrases,
@@ -36,7 +36,6 @@ export function useSettingsLogic() {
   const [accounts, setAccounts] = useState<AccountEntry[]>([]);
   const [selectedAccountId, setSelectedAccountId] = useState<string | undefined>(undefined);
   const [keys, setKeys] = useState<KeyRecord[]>([]);
-  const [certs, setCerts] = useState<PublicCert[]>([]); 
   const [unlocked, setUnlocked] = useState<Record<string, boolean>>({});
   const [persisted, setPersisted] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<boolean>(false);
@@ -86,8 +85,8 @@ export function useSettingsLogic() {
   
   const refresh = useCallback(async () => {
     console.log("Refreshing keys and certs for account:", selectedAccountId);
-    const [k, c] = await Promise.all([listKeyRecords(selectedAccountId), listPublicCerts(undefined, selectedAccountId)]);
-    setKeys(k); setCerts(c);
+    const [k] = await Promise.all([listKeyRecords(selectedAccountId)]);
+    setKeys(k);
     
     const u: Record<string, boolean> = {};
     const p: Record<string, boolean> = {};
@@ -445,11 +444,10 @@ export function useSettingsLogic() {
       setBusy(false);
     }
   }
-  async function handleUploadKey(c: PublicCert) {
+  async function handleUploadKey(c: PublicCert | KeyRecord) {
     setBusy(true);
     try {
-      // @ts-ignore - récupère le texte de la clé publique (ajuste selon ton type exact c.publicKey ou c.armored)
-      const armored = c.publicKey || c.armored; 
+      const armored = c.publicKey; 
       if (!armored) throw new Error(host.i18n.t('settings.error.no_armored_key'));
 
       const res = await uploadKey(armored);
@@ -522,13 +520,6 @@ export function useSettingsLogic() {
         await deleteKeyRecord(rec.id);
         if (rec.recoverable) await deleteKeyRecord(rec.id + '_recovery');
         //delete public jey associated by serahcing by email
-      if (rec.email) {
-        const publicCerts = await listPublicCerts();
-        const associatedCerts = publicCerts.filter(c => c.email === rec.email);
-        for (const cert of associatedCerts) {
-          await deletePublicCert(cert.id);
-        }
-      }
       host.toast.success(host.i18n.t('settings.success.key_deleted'));
       await refresh();
     }
@@ -552,17 +543,6 @@ export function useSettingsLogic() {
     }
   }
 
-  async function removeCert(c: PublicCert) {
-    const ok = await host.ui.confirm({
-      title: host.i18n.t('settings.confirm.delete_public_title'),
-      message: host.i18n.t('settings.confirm.delete_public_msg', { email: c.email }),
-      danger: true,
-      confirmLabel: host.i18n.t('settings.action.delete'),
-    });
-    if (!ok) return;
-    await deletePublicCert(c.id);
-    await refresh();
-  }
 
   async function handleSetDefaultPrivateKey(targetKey: KeyRecord, isChecked: boolean) {
   setBusy(true);
@@ -919,7 +899,7 @@ export function useSettingsLogic() {
     }
   }
 
-  async function handleDownloadKey(c: PublicCert)  {
+  async function handleDownloadKey(c: PublicCert | KeyRecord) {
     try {
       const armored = c.publicKey; 
       if (!armored) throw new Error(host.i18n.t('settings.error.no_armored_key'));
@@ -940,7 +920,7 @@ export function useSettingsLogic() {
     accounts,
     selectedAccountId,
     selectAccount,
-    keys, certs, unlocked, persisted, busy,
+    keys, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
     searchEmail, setSearchEmail, gen, setGen,
     refresh,
@@ -953,7 +933,6 @@ export function useSettingsLogic() {
     handleUploadKey,
     handleSearchAndImportKey,
     importCertFile,
-    removeCert,
     lock,
     removeKey,
     handleSetDefaultPrivateKey,

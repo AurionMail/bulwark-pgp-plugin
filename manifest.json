@@ -343,7 +343,9 @@
       "settings.confirm.remove_webauthn_msg": "Are you sure you want to remove WebAuthn for this key? You will have to unlock your key with your passphrase.",
       "settings.success.webauthn_removed": "WebAuthn removed for this key",
       "settings.action.remove_webauthn": "Remove WebAuthn",
-      "settings.action.remove": "Remove"
+      "settings.action.remove": "Remove",
+      "settings.action.upload_public_key": "Upload public key to keys.openpgp.org",
+      "settings.action.download_public_key": "Download public key (.asc)"
     }
   }
 }

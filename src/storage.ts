@@ -12,7 +12,6 @@ import { initAurionAPI, syncKeysToAurion } from './aurion/utils.ts';
 const DB_NAME = 'aurion-plugin-store';
 const DB_VERSION = 13;
 const KEY_RECORDS_STORE = 'key-records';
-const PUBLIC_CERTS_STORE = 'public-certs';
 const SESSION_KEYS_STORE = 'session-keys';
 const MESSAGE_CACHE_STORE = 'message-cache';
 const RECIPIENTS_STORE = 'recipients-cache'; 
@@ -121,11 +120,6 @@ function openDB(): Promise<IDBDatabase> {
         const keyStore = db.createObjectStore(KEY_RECORDS_STORE, { keyPath: 'id' });
         keyStore.createIndex('email', 'email', { unique: false });
         keyStore.createIndex('accountId', 'accountId', { unique: false });
-      }
-      if (!db.objectStoreNames.contains(PUBLIC_CERTS_STORE)) {
-        const certStore = db.createObjectStore(PUBLIC_CERTS_STORE, { keyPath: 'id' });
-        certStore.createIndex('email', 'email', { unique: false });
-        certStore.createIndex('accountId', 'accountId', { unique: false });
       }
       if (!db.objectStoreNames.contains(SESSION_KEYS_STORE)) {
         db.createObjectStore(SESSION_KEYS_STORE, { keyPath: 'id' });
@@ -264,29 +258,6 @@ export async function deleteAllKeyRecords(accountId?: string): Promise<void> {
     all = all.filter((k) => k.accountId === accountId);
   }
   await Promise.all(all.map((k) => txPromise<undefined>(db, KEY_RECORDS_STORE, 'readwrite', (s) => s.delete(k.id))));
-}
-
-// ── Public Keys (Contacts) CRUD ─────────────────────────────────────
-
-export async function savePublicCert(cert: PublicCert): Promise<void> {
-  const db = await openDB();
-  await txPromise<IDBValidKey>(db, PUBLIC_CERTS_STORE, 'readwrite', (s) => s.put(cert));
-}
-
-export async function listPublicCerts(email?: string, accountId?: string): Promise<PublicCert[]> {
-  const db = await openDB();
-  const all = await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll());
-  if (!email && !accountId) return all;
-  return all.filter((c) => {
-    if (email && c.email === email) return true;
-    if (accountId && c.accountId === accountId) return true;
-    return false;
-  });
-}
-
-export async function deletePublicCert(id: string): Promise<void> {
-  const db = await openDB();
-  await txPromise<undefined>(db, PUBLIC_CERTS_STORE, 'readwrite', (s) => s.delete(id));
 }
 
 export async function setDefaultKeyRecord(targetId: string, isChecked: boolean): Promise<void> {
@@ -513,13 +484,11 @@ export async function exportPluginData(accountId?: string): Promise<void> {
 
     if (accountId) {
       rawKeys = (await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll())).filter((k) => k.accountId === accountId);
-      rawCerts = (await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll())).filter((c) => c.accountId === accountId);
       rawCache = (await txPromise<EncryptedMessageCache[]>(db, MESSAGE_CACHE_STORE, 'readonly', (s) => s.getAll())).filter((m) => {
         return rawKeys.some((k) => k.id === m.keyRecordId);
       });
     } else {
       rawKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
-      rawCerts = await txPromise<PublicCert[]>(db, PUBLIC_CERTS_STORE, 'readonly', (s) => s.getAll());
       rawCache = await txPromise<EncryptedMessageCache[]>(db, MESSAGE_CACHE_STORE, 'readonly', (s) => s.getAll());
     }
 
@@ -552,7 +521,6 @@ export async function exportPluginData(accountId?: string): Promise<void> {
       version: DB_VERSION,
       createdAt: new Date().toISOString(),
       keys: serializedKeys,
-      certs: rawCerts,
       messageCache: serializedCache,
       migrations: rawMigrations
     };
@@ -602,15 +570,6 @@ export async function importPluginData(jsonContent: string, accountId?: string):
       storeKeys.put(restoredKey);
     }
 
-    const certsToImport = accountId
-      ? backup.certs.filter((cert: any) => cert.accountId === accountId)
-      : backup.certs;
-
-    const txCerts = db.transaction(PUBLIC_CERTS_STORE, 'readwrite');
-    const storeCerts = txCerts.objectStore(PUBLIC_CERTS_STORE);
-    for (const cert of certsToImport) {
-      storeCerts.put(cert);
-    }
 
     const cacheToImport = accountId
       ? backup.messageCache.filter((item: any) => allowedKeyIds.has(item.keyRecordId))
@@ -633,7 +592,7 @@ export async function importPluginData(jsonContent: string, accountId?: string):
       }
     }
 
-    const transactionsToWait: IDBTransaction[] = [txKeys, txCerts, txCache];
+    const transactionsToWait: IDBTransaction[] = [txKeys, txCache];
 
     if (Array.isArray(backup.migrations) && db.objectStoreNames.contains(MIGRATIONS_STORE)) {
       const txMigrations = db.transaction(MIGRATIONS_STORE, 'readwrite');

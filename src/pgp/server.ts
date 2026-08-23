@@ -1,3 +1,7 @@
+import host from '@plugin-host';
+import { WkdResult } from '../types.ts';
+import * as openpgp from 'openpgp';
+
 const DEFAULT_BASE_URL = "https://keys.openpgp.org";
 
 export interface KeyServerOptions {
@@ -107,6 +111,21 @@ export async function lookup(rawEmail: string, opts?: KeyServerOptions): Promise
   }
   
   const normalizedEmail = e.toLowerCase();
-  const armored = await lookupByEmail(normalizedEmail, opts);
+  let armored: string | null = null;
+  const wkdResult: WkdResult = await host.crypto.getPublicKeyFromWKD(normalizedEmail);
+  if (wkdResult.status === 'FOUND') {
+    host.log.info(`WKD lookup successful for ${normalizedEmail}`);
+    console.log(`WKD lookup for ${wkdResult}`);
+    const candidate = new TextDecoder().decode(wkdResult.rawKey);
+    if(wkdResult.type == 'BINARY' && wkdResult.rawKey) {
+      const key = await openpgp.readKey({ binaryKey: new Uint8Array(wkdResult.rawKey) });
+      armored = key.armor();
+    }else{
+      armored = candidate;
+    }
+  } else {
+    host.log.info(`WKD lookup failed for ${normalizedEmail} with wkd: ${wkdResult}`);
+    armored = await lookupByEmail(normalizedEmail, opts);
+  }
   return { email: normalizedEmail, armored };
 }

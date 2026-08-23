@@ -32,6 +32,7 @@ End-to-end PGP for Bulwark Webmail. All cryptography runs locally in the browser
 - **Password change** : Change your keys password of your keys without losing your local index/preview (2.0.0)
 - **Server vs. E2E Badges:** Display a dedicated message in banner to distinguish between E2E encrypted emails and those encrypted server-side (2.0.0).
 - **Multi-accounts** : You can use the plugin with a lot of accounts. The keys used for each accounts are scoped by account. This way, you can share they to an account without sharing the all keys of your session (2.0.0). Before, it was possible to use it in multi-account, but it was not officaly supoorted and keys weren't scoped by accounts.
+- **Web Key Directory** : When searching for keys, we now ask the Web Key Directory of domain before asking to `keys.openpgp.org`
 
 For more details, refers to [DOCS.md](DOCS.md) file.
 
@@ -44,9 +45,6 @@ For more details, refers to [DOCS.md](DOCS.md) file.
   * *Note on Threat Model:* If an attacker successfully executes arbitrary JavaScript in the client (via XSS or a malicious third-party plugin), they could potentially intercept keys in memory. This is an inherent limitation of web-based cryptography. However, our 100% RAM isolation significantly reduces the attack surface compared to disk-bound alternatives that write active keys to browser storage.
 - **Keys in Use:** with DangerousStorage activated : Stored encrypted with a non extractible AES key. It allows user to avoid decrypting when refreshing
 - **Output Sanitization:** Returned HTML still passes through the host mail sanitizer before rendering.
-
-## Roadmap
-- [ ] Check WKD of domains to search keys
 
 ## index/preview/keys sync
 This currently not supported in this plugin, but you can use the fork made by [AurionMail](https://github.com/AurionMail/)
@@ -63,5 +61,7 @@ We use
 - mimetext to generate the mime message when encrypting
 - hash-wasm for Argon2Id derivation
 
+## License
+This program is licensed under GPL-3.0-or-later.
 ## Thanks
 This plugin is inspired by the official S/MIME plugin. Heartfelt thanks to its author, Linus Rath, for his invaluable work!
