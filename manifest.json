@@ -119,11 +119,16 @@
       "description": "Whether to lock all keys when the user logs out. This is used only when StoreDangerous is enabled. This is useful if you want to avoid leaving unlocked keys in memory when the user logs out.",
       "default": false
     },
-    "useCurve25519": {
-      "type": "boolean",
-      "label": "Use Curve25519 for key generation",
-      "description": "Whether to use Curve25519 for key generation. This is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail.",
-      "default": true
+    "generateKey": {
+      "type": "select",
+      "label": "Which engine to use for key generation",
+      "description": "Which engine to use for key generation. curve25519 is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail. ed25519Legacy is a legacy version of ed25519 that is compatible with older clients. rsa4096 is a more traditional algorithm that is compatible with all clients, but it is slower than curve25519.",
+      "default": true,
+      "options": [
+        "curve25519",
+        "ed25519Legacy",
+        "rsa4096"
+      ]
     }
   },
   "locales": {

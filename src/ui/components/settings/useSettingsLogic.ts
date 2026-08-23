@@ -669,12 +669,27 @@ export function useSettingsLogic() {
       let privateKey: string;
       let revocationCertificate: string;
 
-      if (settings().useCurve25519 == true) {
+      if (settings().generateKey == 'ed25519Legacy') {
+        ({ privateKey, revocationCertificate } = await openpgp.generateKey({
+          type: 'ecc',
+          curve: 'ed25519Legacy',
+          userIDs: [{ name: data.name, email: data.email }],
+          passphrase: data.pass,
+          subkeys: [
+            {
+              type: 'ecc',
+              curve: 'curve25519Legacy',
+              sign: false
+            }
+          ],
+          format: 'armored'
+        }));
+      } else if (settings().generateKey == 'curve25519') {
         ({ privateKey, revocationCertificate } = await openpgp.generateKey({
           type: 'curve25519',
           userIDs: [{ name: data.name, email: data.email }],
           passphrase: data.pass,
-          subkeys: [{ type: 'curve25519' }],
+          subkeys: [{ type: 'curve25519', sign: false }],
           format: 'armored'
         }));
       } else {
