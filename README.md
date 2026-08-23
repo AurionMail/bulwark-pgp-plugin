@@ -46,9 +46,6 @@ For more details, refers to [DOCS.md](DOCS.md) file.
 - **Keys in Use:** with DangerousStorage activated : Stored encrypted with a non extractible AES key. It allows user to avoid decrypting when refreshing
 - **Output Sanitization:** Returned HTML still passes through the host mail sanitizer before rendering.
 
-## Roadmap
-- [ ] Check WKD of domains to search keys
-
 ## index/preview/keys sync
 This currently not supported in this plugin, but you can use the fork made by [AurionMail](https://github.com/AurionMail/)
 ## Build & Installation
