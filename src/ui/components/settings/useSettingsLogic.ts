@@ -137,7 +137,10 @@ export function useSettingsLogic() {
       const text = new TextDecoder().decode(await file.arrayBuffer());
       const { keyRecord } = await importOpenPgpPrivateKey(text, storagePass, currentPass);
       
-      await saveKeyRecord(keyRecord);
+      const hasDefaultKey = keys.some(k => k.default);
+      await saveKeyRecord({ ...keyRecord, default: !hasDefaultKey });
+      // we autimatically set the imported key as the main key for the mail. User can change the main key later.
+      await handleSetMainPrivateKey(keyRecord, true);
       const unlockedSession = await unlockPrivateKey(keyRecord, storagePass);
 
        broadcastUnlockKey({ 
@@ -408,6 +411,9 @@ export function useSettingsLogic() {
       if (originalRec.default) {
         updatedRecord.default = true;
       }
+      if(originalRec.main) {
+        updatedRecord.main = true;
+      }
 
       await saveKeyRecord(updatedRecord);
       // we can't unlock the message cache because it was encrypto with a derived key from the master key, which is lost. 
@@ -537,7 +543,7 @@ export function useSettingsLogic() {
   }
 
 
-  async function handleSetDefaultPrivateKey(targetKey: KeyRecord, isChecked: boolean) {
+  async function handleSetDefaultPrivateKey(targetKey: KeyRecord) {
   setBusy(true);
   try {
     await Promise.all(
@@ -547,10 +553,10 @@ export function useSettingsLogic() {
         
         const updatedKey = {
           ...k,
-          default: isCurrent ? isChecked : (isChecked ? false : k.default)
+          default: isCurrent
         };
 
-        if (isCurrent && isChecked && !k.aesSalt && !k.argon2Params ) {
+        if (isCurrent && !k.aesSalt && !k.argon2Params ) {
           updatedKey.aesSalt = generateSalt();
         }
 
@@ -558,12 +564,36 @@ export function useSettingsLogic() {
       })
     );
     
-    host.toast.success(
-      isChecked 
-        ? host.i18n.t('settings.success.default_key_set', { email: targetKey.email }) 
-        : host.i18n.t('settings.success.default_key_removed')
-    );
+    host.toast.success( host.i18n.t('settings.success.default_key_set', { email: targetKey.email }));
     await refresh();
+  } catch (err) {
+    const error = err as Error;
+    host.toast.error(host.i18n.t('settings.error.generic', { message: error?.message ? error.message : String(err) }));
+  } finally {
+    setBusy(false);
+  }
+}
+
+  async function handleSetMainPrivateKey(targetKey: KeyRecord, silent: boolean = false) {
+  setBusy(true);
+  try {
+    const email = targetKey.email;
+    await Promise.all(
+      keys.filter(k => k.email === email)
+      .map(async (k) => {
+        const isCurrent = k.id === targetKey.id;
+        
+        const updatedKey = {
+          ...k,
+          main: isCurrent
+        };
+        return saveKeyRecord(updatedKey);
+      })
+    );
+    if(!silent){
+      host.toast.success( host.i18n.t('settings.success.main_key_set', { email: targetKey.email }));
+      await refresh();
+    }
   } catch (err) {
     const error = err as Error;
     host.toast.error(host.i18n.t('settings.error.generic', { message: error?.message ? error.message : String(err) }));
@@ -717,6 +747,7 @@ export function useSettingsLogic() {
         recoverable: withRecovery,
         serverSide: autoAddToServerSideEncryption
       });
+      await handleSetMainPrivateKey(keyRecord, true);
 
     const unlockedSession = await unlockPrivateKey(keyRecord, data.pass);
 
@@ -874,6 +905,7 @@ export function useSettingsLogic() {
     handleImportJSON,
     changePass,
     handleDownloadKey,
-    removeWebAuthnLink
+    removeWebAuthnLink,
+    handleSetMainPrivateKey
   };
 }
