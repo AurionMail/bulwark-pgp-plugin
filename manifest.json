@@ -144,7 +144,7 @@
       "settings.private_keys_title": "Your OpenPGP keys",
       "settings.private_keys_desc": "Import an armored OpenPGP private key (.asc/.key). The key remains encrypted locally in your browser sandbox.",
       "settings.no_private_keys": "No keys imported yet.",
-      "settings.default_badge": "Default",
+      "settings.default_badge": "Used as default key for account (index/draft encryption)",
       "settings.key_created": "created",
       "settings.key_expires": "expires",
       "settings.key_no_expiration": "no expiration",
@@ -318,7 +318,11 @@
       "settings.action.remove_webauthn": "Remove WebAuthn",
       "settings.action.remove": "Remove",
       "settings.action.upload_public_key": "Upload public key to keys.openpgp.org",
-      "settings.action.download_public_key": "Download public key (.asc)"
+      "settings.action.download_public_key": "Download public key (.asc)",
+      "settings.action.make_default": "Make default for account (index/draft encryption)",
+      "settings.action.make_main": "Make default for email",
+      "settings.success.main_key_set": "Key {email} defined as default for email",
+      "settings.main_badge": "Used as main key for email"
     }
   }
 }

@@ -16,7 +16,7 @@ interface PrivateKeysSectionProps {
   gen: { open: boolean; name: string; email: string; pass: string };
   setGen: React.Dispatch<React.SetStateAction<{ open: boolean; name: string; email: string; pass: string }>>;
   onUnlockAllWebAuthn: () => void;
-  onSetDefaultKey: (targetKey: KeyRecord, isChecked: boolean) => void;
+  onSetDefaultKey: (targetKey: KeyRecord) => void;
   onSetServerSideEncryption: (key: KeyRecord) => void;
   onLock: (rec: KeyRecord) => void;
   onUnlock: (rec: KeyRecord) => void;
@@ -29,6 +29,7 @@ interface PrivateKeysSectionProps {
   onChangePass: (rec: KeyRecord) => void;
   onUploadKey: (c: KeyRecord) => void;
   onDownloadKey: (c: KeyRecord) => void;
+  onSetMainPrivateKey: (c: KeyRecord) => void;
 }
 
 export function PrivateKeysSection({
@@ -55,6 +56,7 @@ export function PrivateKeysSection({
   onremoveWebAuthnLink,
   onUploadKey,
   onDownloadKey,
+  onSetMainPrivateKey
 }: PrivateKeysSectionProps) {
   const visibleKeys = keys.filter((rec) => !rec.recovery);
   const hasWebAuthnLockedKeys = keys.some((k) => k.webauthn && !unlocked[k.id]);
@@ -112,31 +114,40 @@ export function PrivateKeysSection({
                 
                 {/* Informations sur la clé */}
                 <div style={{ display: 'flex', alignItems: 'flex-start', gap: '12px' }}>
-                  <input
-                    type="checkbox"
-                    checked={!!rec.default}
-                    disabled={busy}
-                    onChange={(e) => onSetDefaultKey(rec, e.target.checked)}
-                    style={{ cursor: 'pointer', width: '16px', height: '16px', marginTop: '3px', accentColor: accentColor}}
-                  />
                   <div>
-                    <div style={{ fontWeight: 600, fontSize: '14px' }}>
+                    <div style={{ fontWeight: 600, fontSize: '14px',display: 'inline-flex', alignItems: 'center', gap: '8px'  }}>
                       {rec.email || rec.subject || 'OpenPGP User'}
-                      {rec.default && (
-                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: accentColor || 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' }}>
-                          {host.i18n.t('settings.default_badge')}
-                        </span>
-                      )}
-                      {rec.serverSide && (
-                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: accentColor || 'var(--color-success, #e0f2fe)', color: 'var(--color-success-foreground, #0369a1)', fontWeight: 'normal' }}>
-                          {host.i18n.t('settings.server_side_badge')}
-                        </span>
-                      )}
                       {persisted[rec.id] && (
-                        <span style={{ marginLeft: '8px', fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: accentColor || 'var(--color-warning, #fffbeb)', color: 'var(--color-warning-foreground, #92400e)', fontWeight: 'normal' }}>
+                        <span style={{ fontSize: '11px', padding: '2px 6px', borderRadius: '4px', background: accentColor || 'var(--color-warning, #fffbeb)', color: 'var(--color-warning-foreground, #92400e)', fontWeight: 'normal' }}>
                           {host.i18n.t('settings.persisted_badge')}
                         </span>
                       )}
+                      <div style={{color: accentColor || 'var(--color-success, #e0f2fe)', display: 'inline-flex', alignItems: 'center', gap: '8px'}}>
+                      {rec.default && (
+                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor">
+                          <path d="M480-269 314-169q-11 7-23 6t-21-8q-9-7-14-17.5t-2-23.5l44-189-147-127q-10-9-12.5-20.5T140-571q4-11 12-18t22-9l194-17 75-178q5-12 15.5-18t21.5-6q11 0 21.5 6t15.5 18l75 178 194 17q14 2 22 9t12 18q4 11 1.5 22.5T809-528L662-401l44 189q3 13-2 23.5T690-171q-9 7-21 8t-23-6L480-269Z">
+                            <title>{host.i18n.t('settings.default_badge')}</title>
+                          </path>
+                        </svg>
+                       
+                      )}
+                      {rec.main !== false && (
+                        <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor">
+                          <path d="M160-120q-17 0-28.5-11.5T120-160v-97q0-16 6-30.5t17-25.5l505-504q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L313-143q-11 11-25.5 17t-30.5 6h-97Zm544-528 56-56-56-56-56 56 56 56Z">
+                            <title>{host.i18n.t('settings.main_badge')}</title>
+                          </path>
+                        </svg>
+                        
+                      )}
+                      {rec.serverSide && (
+                       <svg xmlns="http://www.w3.org/2000/svg" height="16px" viewBox="0 -960 960 960" width="16px" fill="currentColor">
+                        <path d="M260-160q-91 0-155.5-63T40-377q0-78 47-139t123-78q25-92 100-149t170-57q98 0 172.5 58.5T751-592q3 13-4.5 23T725-557q-72 13-118.5 68.5T560-360v160q0 17-11.5 28.5T520-160H260Zm420 0q-17 0-28.5-11.5T640-200v-120q0-17 11.5-28.5T680-360v-40q0-33 23.5-56.5T760-480q33 0 56.5 23.5T840-400v40q17 0 28.5 11.5T880-320v120q0 17-11.5 28.5T840-160H680Zm40-200h80v-40q0-17-11.5-28.5T760-440q-17 0-28.5 11.5T720-400v40Z">
+                          <title>{host.i18n.t('settings.server_side_badge')}</title>
+                        </path>
+                       </svg>
+                        
+                      )}
+                      </div>
                     </div>
                     
                     <div style={{ fontSize: '12px', color: 'var(--color-muted-foreground, #64748b)' }}>
@@ -195,7 +206,7 @@ export function PrivateKeysSection({
                       aria-expanded={openMenuId === rec.id}
                       onClick={() => setOpenMenuId(openMenuId === rec.id ? null : rec.id)}
                     >
-                      {/* Icône Trois Points Vertical (More Vertical) */}
+                      {/*  (More options icon) */}
                       <svg xmlns="http://www.w3.org/2000/svg" width="1rem" height="1rem" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round">
                         <circle cx="12" cy="12" r="1" />
                         <circle cx="12" cy="5" r="1" />
@@ -220,9 +231,7 @@ export function PrivateKeysSection({
                               setOpenMenuId(null);
                             }}
                           >
-                            <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" viewBox="0 -960 960 960" fill="currentColor">
-                              <path d="M300-720q-25 0-42.5 17.5T240-660q0 25 17.5 42.5T300-600q25 0 42.5-17.5T360-660q0-25-17.5-42.5T300-720Zm0 400q-25 0-42.5 17.5T240-260q0 25 17.5 42.5T300-200q25 0 42.5-17.5T360-260q0-25-17.5-42.5T300-320ZM160-840h640q17 0 28.5 11.5T840-800v280q0 17-11.5 28.5T800-480H160q-17 0-28.5-11.5T120-520v-280q0-17 11.5-28.5T160-840Zm40 80v200h560v-200H200Zm-40 320h640q17 0 28.5 11.5T840-400v280q0 17-11.5 28.5T800-80H160q-17 0-28.5-11.5T120-120v-280q0-17 11.5-28.5T160-440Zm40 80v200h560v-200H200Zm0-400v200-200Zm0 400v200-200Z" />
-                            </svg>
+                            <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" height="1rem" viewBox="0 -960 960 960" width="1rem" fill="currentColor"><path d="M260-160q-91 0-155.5-63T40-377q0-78 47-139t123-78q25-92 100-149t170-57q98 0 172.5 58.5T751-592q3 13-4.5 23T725-557q-72 13-118.5 68.5T560-360v160q0 17-11.5 28.5T520-160H260Zm420 0q-17 0-28.5-11.5T640-200v-120q0-17 11.5-28.5T680-360v-40q0-33 23.5-56.5T760-480q33 0 56.5 23.5T840-400v40q17 0 28.5 11.5T880-320v120q0 17-11.5 28.5T840-160H680Zm40-200h80v-40q0-17-11.5-28.5T760-440q-17 0-28.5 11.5T720-400v40Z"/></svg>
                             <span>{host.i18n.t('settings.action.upload_server')}</span>
                           </button>
                         )}
@@ -272,7 +281,7 @@ export function PrivateKeysSection({
                               setOpenMenuId(null);
                             }}
                           >
-                            <svg
+                            <svg className="menu-icon"
                     xmlns="http://www.w3.org/2000/svg"
                     width="1rem"
                     height="1rem"
@@ -300,7 +309,7 @@ export function PrivateKeysSection({
                               setOpenMenuId(null);
                             }}
                           >
-                  <svg
+                  <svg className="menu-icon"
                   xmlns="http://www.w3.org/2000/svg"
                   width="1rem"
                   height="1rem"
@@ -317,6 +326,36 @@ export function PrivateKeysSection({
 
                             <span>{host.i18n.t('settings.action.download_public_key')}</span>
                           </button>
+
+                        {!rec.default && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="menu-item"
+                          disabled={busy}
+                          onClick={() => {
+                            onSetDefaultKey(rec);
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" height="1rem" viewBox="0 -960 960 960" width="1rem" fill="currentColor"><path d="M480-269 314-169q-11 7-23 6t-21-8q-9-7-14-17.5t-2-23.5l44-189-147-127q-10-9-12.5-20.5T140-571q4-11 12-18t22-9l194-17 75-178q5-12 15.5-18t21.5-6q11 0 21.5 6t15.5 18l75 178 194 17q14 2 22 9t12 18q4 11 1.5 22.5T809-528L662-401l44 189q3 13-2 23.5T690-171q-9 7-21 8t-23-6L480-269Z"/></svg>
+                          <span>{host.i18n.t('settings.action.make_default')}</span>
+                        </button>)}
+
+                        {rec.main === false && (
+                        <button
+                          type="button"
+                          role="menuitem"
+                          className="menu-item"
+                          disabled={busy}
+                          onClick={() => {
+                            onSetMainPrivateKey(rec);
+                            setOpenMenuId(null);
+                          }}
+                        >
+                          <svg className="menu-icon" xmlns="http://www.w3.org/2000/svg" height="1rem" viewBox="0 -960 960 960" width="1rem" fill="currentColor"><path d="M160-120q-17 0-28.5-11.5T120-160v-97q0-16 6-30.5t17-25.5l505-504q12-11 26.5-17t30.5-6q16 0 31 6t26 18l55 56q12 11 17.5 26t5.5 30q0 16-5.5 30.5T817-647L313-143q-11 11-25.5 17t-30.5 6h-97Zm544-528 56-56-56-56-56 56 56 56Z"/></svg>
+                          <span>{host.i18n.t('settings.action.make_main')}</span>
+                        </button>)}
                         
 
                         {/* WebAuthn */}
