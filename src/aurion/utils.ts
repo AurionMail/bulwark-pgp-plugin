@@ -7,9 +7,6 @@ import {
   deleteKeyRecord, 
   clearAllMessageCache, 
   saveMessageCache, 
-  listPublicCerts, 
-  savePublicCert, 
-  deletePublicCert, 
 } from '../storage.ts';
 import { generateUUID } from '../util.ts';
 import { consumeSecret } from './secrets/client.ts';
@@ -195,40 +192,6 @@ export async function syncfromAurion(api: AurionAPI): Promise<void> {
         await deleteKeyRecord(remoteKey.id, false);
         await saveKeyRecord(remoteKey, false);
         await clearDangerousStorage();
-    }
-  }
-
-  // ==========================================
-  // 4. GÉNÉRATION ET SYNCHRONISATION DES CLÉS PUBLIQUES (PublicCert)
-  // ==========================================
-  const currentPublicCerts = await listPublicCerts();
-  const certFingerprints = new Set(currentPublicCerts.map((c) => c.fingerprint));
-
-  for (const keyRecord of remoteKeys) {
-    // On génère la cert publique si la clé possède un bloc public et n'est pas déjà présente
-    if (keyRecord.publicKey && !certFingerprints.has(keyRecord.fingerprint)) {
-      await savePublicCert({
-        id: generateUUID(),
-        email: keyRecord.email,
-        publicKey: keyRecord.publicKey,
-        issuer: keyRecord.issuer,
-        subject: keyRecord.subject,
-        notBefore: keyRecord.notBefore,
-        notAfter: keyRecord.notAfter,
-        fingerprint: keyRecord.fingerprint,
-        source: 'aurion-sync',
-        default: keyRecord.default
-      });
-      // Ajouter au set local pour éviter d'éventuels doublons lors de la même exécution
-      certFingerprints.add(keyRecord.fingerprint);
-    }
-  }
-
-  // Nettoyage optionnel : Supprimer les certs publiques provenant de clés privées supprimées
-  const activeFingerprints = new Set(remoteKeys.map((k) => k.fingerprint));
-  for (const cert of currentPublicCerts) {
-    if (cert.source === 'aurion-sync' && !activeFingerprints.has(cert.fingerprint)) {
-      await deletePublicCert(cert.id);
     }
   }
 }
