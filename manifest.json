@@ -149,11 +149,16 @@
       "description": "Whether to lock all keys when the user logs out. This is used only when StoreDangerous is enabled. This is useful if you want to avoid leaving unlocked keys in memory when the user logs out.",
       "default": false
     },
-    "useCurve25519": {
-      "type": "boolean",
-      "label": "Use Curve25519 for key generation",
-      "description": "Whether to use Curve25519 for key generation. This is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail.",
-      "default": true
+    "generateKey": {
+      "type": "select",
+      "label": "Which engine to use for key generation",
+      "description": "Which engine to use for key generation. curve25519 is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail. ed25519Legacy is a legacy version of ed25519 that is compatible with older clients. rsa4096 is a more traditional algorithm that is compatible with all clients, but it is slower than curve25519.",
+      "default": true,
+      "options": [
+        "curve25519",
+        "ed25519Legacy",
+        "rsa4096"
+      ]
     }
   },
   "locales": {
@@ -171,7 +176,7 @@
       "settings.private_keys_title": "Your OpenPGP keys",
       "settings.private_keys_desc": "Import an armored OpenPGP private key (.asc/.key). The key remains encrypted locally in your browser sandbox.",
       "settings.no_private_keys": "No keys imported yet.",
-      "settings.default_badge": "Default",
+      "settings.default_badge": "Used as default key for account (index/draft encryption)",
       "settings.key_created": "created",
       "settings.key_expires": "expires",
       "settings.key_no_expiration": "no expiration",
@@ -345,7 +350,11 @@
       "settings.action.remove_webauthn": "Remove WebAuthn",
       "settings.action.remove": "Remove",
       "settings.action.upload_public_key": "Upload public key to keys.openpgp.org",
-      "settings.action.download_public_key": "Download public key (.asc)"
+      "settings.action.download_public_key": "Download public key (.asc)",
+      "settings.action.make_default": "Make default for account (index/draft encryption)",
+      "settings.action.make_main": "Make default for email",
+      "settings.success.main_key_set": "Key {email} defined as default for email",
+      "settings.main_badge": "Used as main key for email"
     }
   }
 }

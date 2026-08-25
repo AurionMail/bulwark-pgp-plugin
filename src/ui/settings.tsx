@@ -34,7 +34,8 @@ const {
     handleImportJSON,
     changePass,
     handleDownloadKey,
-    removeWebAuthnLink
+    removeWebAuthnLink,
+    handleSetMainPrivateKey
   } = useSettingsLogic();
 
   if (keys.length === 0) {
@@ -245,6 +246,7 @@ const {
         onremoveWebAuthnLink={removeWebAuthnLink}
         onUploadKey={handleUploadKey}
         onDownloadKey={handleDownloadKey}
+        onSetMainPrivateKey={handleSetMainPrivateKey}
       />
 
       <PublicKeysSection

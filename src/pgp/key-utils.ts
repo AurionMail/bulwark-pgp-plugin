@@ -69,43 +69,28 @@ type KeyCapabilities = { canSign: boolean; canEncrypt: boolean };
 /**
  * Determines the capabilities of a key (Encryption / Signature) by inspecting its packets.
  */
-export function classifyCapabilities(key: openpgp.PublicKey | openpgp.PrivateKey): KeyCapabilities {
+export async function classifyCapabilities(
+  key: openpgp.PublicKey | openpgp.PrivateKey
+): Promise<KeyCapabilities> {
   let canSign = false;
   let canEncrypt = false;
 
   try {
-    // 1. Detection of signature capability
-    // Pass through the instance object (as any) to call the internal canSign() utility
-    // or check if the key has components capable of signing.
-    if (typeof (key as any).canSign === 'function') {
-      canSign = (key as any).canSign();
-    } else {
-      // Fallback via the flags of the main packet
-      canSign = !!key.keyPacket.algorithm; 
-    }
-
-    // 2. Detection of encryption capability
-    // If the internal method or access to the encryption packet exists, canEncrypt is true.
-    if (typeof (key as any).getEncryptionKeyPacket === 'function') {
+    const encryptionKey = await key.getEncryptionKey();
+    if (encryptionKey) {
       canEncrypt = true;
     }
   } catch {
-    // In case of failure reading internal structures
-    canSign = false;
     canEncrypt = false;
   }
 
-  // Historical fallback if packet analysis fails but the algorithm is RSA
-  if (!canSign && !canEncrypt) {
-    try {
-      const algName = String((key as any).getAlgorithmInfo?.().algorithm || '').toLowerCase();
-      if (algName.includes('rsa')) {
-        canSign = true;
-        canEncrypt = true;
-      }
-    } catch {
-      // Ignore
+  try {
+    const signingKey = await key.getSigningKey();
+    if (signingKey) {
+      canSign = true;
     }
+  } catch {
+    canSign = false;
   }
 
   return { canSign, canEncrypt };
@@ -122,7 +107,7 @@ export async function extractKeyInfo(key: openpgp.PublicKey | openpgp.PrivateKey
   // Safe resolution of the external extractEmailAddresses function
   const emails: string[] = extractEmailAddresses(key);
     
-  const capabilities = classifyCapabilities(key);
+  const capabilities = await classifyCapabilities(key);
   
   const primaryUser = await key.getPrimaryUser();
   const subject = primaryUser?.user?.userID?.userID || emails[0] || 'Unknown PGP User';

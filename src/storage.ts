@@ -55,6 +55,7 @@ export interface KeyRecord {
     canEncrypt: boolean;
   };
   default?: boolean;
+  main?: boolean;
   recovery?: boolean;
   recoverable?: boolean;
   aesSalt?: ArrayBuffer;

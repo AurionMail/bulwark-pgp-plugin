@@ -81,7 +81,7 @@ declare module '@plugin-host' {
       alwaysSendPubKey?: boolean;
       tryToFetchMissingKeys?: boolean;
       StoreDangerous?: boolean;
-      useCurve25519?: boolean;
+      generateKey?: 'curve25519' | 'ed25519Legacy' | 'rsa4096';
     };
   } | undefined;
 }

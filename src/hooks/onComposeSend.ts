@@ -45,14 +45,21 @@ export interface ComposeRequest {
   html?: string;      
 }
 
- async function signingKeyRecordForEmail(fromEmail: string | undefined): Promise<KeyRecord | undefined> {
+async function signingKeyRecordForEmail(fromEmail: string | undefined): Promise<KeyRecord | undefined> {
+  if (!fromEmail) return undefined;
+
   const recs = await listKeyRecords();
-  const lower = (fromEmail || '').toLowerCase();
-  return (
-    recs.find((r) => r.email === lower && r.capabilities?.canSign !== false) ||
-    recs.find((r) => r.email === lower) ||
-    undefined
+  const lower = fromEmail.toLowerCase();
+
+  const eligibleRecords = recs.filter(
+    (r) => r.email?.toLowerCase() === lower && r.capabilities?.canSign !== false
   );
+
+  if (eligibleRecords.length === 0) {
+    return recs.find((r) => r.email?.toLowerCase() === lower);
+  }
+
+  return eligibleRecords.find((r) => r.main === true) || eligibleRecords[0];
 }
   
 async function blobToBytes(blob: Blob): Promise<Uint8Array> {
