@@ -3,7 +3,8 @@
 > Migration to 2.0.0 : For users with > 1 accounts at same time: the index/preview will be reinitialized. You will have to re populate it by decrypting emails. More details about the migration here : https://github.com/paulhenry46/pgp-plugin/pull/17
 
 End-to-end PGP for Bulwark Webmail. All cryptography runs locally in the browser.
-
+## Screenshot
+![Screenhot of Plugin](./screen.png)
 ## Main Features
 
 - **Core Cryptography** : Seamlessly encrypt, decrypt, sign, and verify emails locally using a modern OpenPGP engine. 
@@ -46,8 +47,8 @@ For more details, refers to [DOCS.md](DOCS.md) file.
 - **Keys in Use:** with DangerousStorage activated : Stored encrypted with a non extractible AES key. It allows user to avoid decrypting when refreshing
 - **Output Sanitization:** Returned HTML still passes through the host mail sanitizer before rendering.
 
-## index/preview/keys sync
-This currently not supported in this plugin, but you can use the fork made by [AurionMail](https://github.com/AurionMail/)
+## Local search index and keys Synchronisation
+This currently not supported in this plugin, but you can use the fork made by [AurionMail](https://github.com/AurionMail/). It adds these features and many other !
 ## Build & Installation
 
 ```bash
