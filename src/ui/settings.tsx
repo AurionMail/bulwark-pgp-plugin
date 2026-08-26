@@ -7,6 +7,7 @@ import { OnboardingFlow } from './onboarding.tsx';
 import { PrivateKeysSection } from './components/settings/PrivateKeysList.tsx';
 import { PublicKeysSection } from './components/settings/PublicKeysList.tsx';
 import { ProModeToggle } from './components/settings/AccountSelector.tsx';
+import { AccountState } from './components/settings/AccountState.tsx';
 
 export function SettingsSection() {
 const {
@@ -220,6 +221,10 @@ const {
         accounts={accounts}
         selectedAccountId={selectedAccountId}
         onSelectAccount={selectAccount}
+      />
+
+      <AccountState 
+      accountId={selectedAccountId}
       />
 
       <PrivateKeysSection

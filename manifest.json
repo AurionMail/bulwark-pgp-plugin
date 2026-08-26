@@ -322,7 +322,18 @@
       "settings.action.make_default": "Make default for account (index/draft encryption)",
       "settings.action.make_main": "Make default for email",
       "settings.success.main_key_set": "Key {email} defined as default for email",
-      "settings.main_badge": "Used as main key for email"
+      "settings.main_badge": "Used as main key for email",
+      "account.encryption_ok" : "Your emails are encrypted by default, for recipients with public keys. We will try to automatically get their public key if available.",
+      "account.encryption_warn" : "You can encrypt emails, but it wont be by default or you will loose oportunities to use E2E. You can enable in plugin settings Default Encryption and Missing Key Fetching",
+      "account.at_rest_ok" : "Encryption at rest is configured for this account. It means unecrypted mails sent to you will be automatically encrypted in storage with your key.",
+      "account.at_rest_error" : "Encryption at rest is not enabled for this account. Unencrypted mails sent to you won't be encrypted on storage. Admins can read unencrypted emails",
+      "account.draft_ok" : "Drafts and Attachments are encrypted. If you send emails to recipients with a key, it enable real E2E encryption",
+      "account.draft_error" : "Drafts and Attachments are not encrypted. If you send emails to recipients with public key, admin can still read your email by searching for your draft.",
+      "account.encryption" : "Emails Encryption",
+      "account.encryptionAtRest" : "Encryption at rest",
+      "account.draftEncryption" : "Drafts encryption",
+      "account.state_title" : "Account Encryption Check",
+      "account.state_subtitle" : "Check for real E2E encryption with PGP"
     }
   }
 }
