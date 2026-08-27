@@ -124,10 +124,10 @@ export class AurionAPI {
   // 1. AUTHENTICATION
   // ==========================================
 
-  public async login(email: string, password: string): Promise<LoginResponse> {
+  public async login(token: string): Promise<LoginResponse> {
     const data = await this.request<LoginResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ token: token }),
     });
 
     // Auto-configuration du token après un login réussi

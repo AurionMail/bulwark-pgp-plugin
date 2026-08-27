@@ -1,5 +1,5 @@
 import { AurionAPI } from './api.ts';
-import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord, persistPassphraseToDangerousStorage } from '../storage.ts';
+import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord, persistPassphraseToDangerousStorage, readTempToken } from '../storage.ts';
 import  host  from '@plugin-host';
 import { 
   listKeyRecords, 
@@ -23,39 +23,13 @@ export async function initAurionAPI(): Promise<AurionAPI> {
   host.log.info(`Initializing AurionAPI with base URL: ${baseUrl}`);
   const api = new AurionAPI(baseUrl);
 
-    // regarder si on a un trasnfert de secret local/server.
-    const secret = await readSecret();
-    if (secret) {
-        //un secret est détecté, on va l'utiliser pour récupérer les inforrmations d'authentification.
-        const masterPass = await consumeSecret(secret.id);
-        host.log.info(`Using secret: ${masterPass} to authenticate with AurionAPI.`);
-        const mail = (await host.user.getAccounts()).filter(acc => acc.isConnected === true && acc.isDefault === true)[0]?.email;
-        // get username from email (before @)
-        const username = mail.split('@')[0];
-        const salt = new TextEncoder().encode(`auth_salt_${username}`);
-        const pass = await argon2id({
-          password: masterPass,
-          salt: salt,
-          parallelism: 1,
-          iterations: 3,
-          memorySize: 65536,
-          hashLength: 32,
-          outputType: 'hex',
-        });
-        
-        // on se connecte avec le mail et le mot de passe.
-        const data = await api.login(username, pass);
-        await setToken(data.token);
-        await removeSecret();
-    }else{
-        // si on a pas de secret, on cherche un token
         const token = await getToken();
         if(token){
             api.setToken(token);
         }else{
-            console.log("Aucun secret ni token trouvé pour l'API Aurion.");
+            console.log("No token found for Aurion API. Did you run activateAurionAPI() first?");
         }
-    }
+    
     return api;
 }
 
@@ -65,40 +39,26 @@ export async function activateAurionAPI(): Promise<boolean> {
   host.log.info(`Initializing AurionAPI with base URL: ${baseUrl}`);
   const api = new AurionAPI(baseUrl);
   let locked = true;
-
-    // regarder si on a un trasnfert de secret local/server.
+  
     const secret = await readSecret();
+    const tempToken = await readTempToken();
     let masterPass: string | undefined = undefined;
-    if (secret) {
-        //un secret est détecté, on va l'utiliser pour récupérer les inforrmations d'authentification.
+    if (secret && tempToken) {
         masterPass = await consumeSecret(secret.id);
-        host.log.info(`Using secret: ${masterPass} to authenticate with AurionAPI.`);
-        const mail = (await host.user.getAccounts()).filter(acc => acc.isConnected === true && acc.isDefault === true)[0]?.email;
-        // get username from email (before @)
-        const username = mail.split('@')[0];
-        const salt = new TextEncoder().encode(`auth_salt_${username}`);
-        const pass = await argon2id({
-          password: masterPass,
-          salt: salt,
-          parallelism: 1,
-          iterations: 3,
-          memorySize: 65536,
-          hashLength: 32,
-          outputType: 'hex',
-        });
         
-        // on se connecte avec le mail et le mot de passe.
-        const data = await api.login(username, pass);
+        host.log.info(`Using secret: ${masterPass} to authenticate with AurionAPI.`);
+        
+        const data = await api.login(tempToken);
         await setToken(data.token);
         await removeSecret();
         
     }else{
-        // si on a pas de secret, on cherche un token
+        // if no secret look for jwt token
         const token = await getToken();
         if(token){
             api.setToken(token);
         }else{
-            console.log("Aucun secret ni token trouvé pour l'API Aurion.");
+            console.log("No token found for Aurion API. State", secret, tempToken);
         }
     }
 
