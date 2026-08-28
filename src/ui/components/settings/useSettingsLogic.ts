@@ -918,7 +918,7 @@ export function useSettingsLogic() {
           outputType: 'hex',
         });
 
-      await api.changePassword(oldHash, newHash);
+      await changePassword(username, oldHash, newHash);
 
       //check if dangerous storage passphrase is set for this key, if yes, update it with the new one
       const dict = await loadDangerousPassphrases();

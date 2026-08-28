@@ -9,14 +9,12 @@
     "package": "npm run build && cp manifest.json dist/ && cd dist && zip -X ../aurion_pgpe2e.zip manifest.json index.js"
   },
   "dependencies": {
-    "crypto-js": "^4.2.0",
+    "@serenity-kit/opaque": "^1.1.0",
     "hash-wasm": "^4.12.0",
     "mimetext": "^3.0.28",
-    "openpgp": "^6.3.1",
-    "thinbus-srp": "^2.0.2"
+    "openpgp": "^6.3.1"
   },
   "devDependencies": {
-    "@types/crypto-js": "^4.2.2",
     "@types/node": "^26.1.0",
     "@types/react": "^19.2.17",
     "esbuild": "^0.24.0",

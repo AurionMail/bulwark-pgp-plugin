@@ -85,5 +85,3 @@ declare module '@plugin-host' {
     };
   } | undefined;
 }
-
-declare module 'thinbus-srp/client.mjs';
