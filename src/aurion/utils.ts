@@ -1,5 +1,5 @@
 import { AurionAPI } from './api.ts';
-import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord, persistPassphraseToDangerousStorage, readTempToken } from '../storage.ts';
+import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord, persistPassphraseToDangerousStorage, readTempToken, deleteAllKeyRecords } from '../storage.ts';
 import  host  from '@plugin-host';
 import { 
   listKeyRecords, 
@@ -131,28 +131,10 @@ export async function syncfromAurion(api: AurionAPI): Promise<void> {
   // ==========================================
   // 3. SYNCHRONISATION DES CLÉS PRIVÉES
   // ==========================================
-  const localKeys = await listKeyRecords();
 
-  const remoteKeyIds = new Set(remoteKeys.map((k) => k.id));
-  const localKeyIds = new Set(localKeys.map((k) => k.id));
-
-  // A. Supprimer les clés locales qui n'existent plus sur Aurion
-  for (const localKey of localKeys) {
-    if (!remoteKeyIds.has(localKey.id)) {
-      await deleteKeyRecord(localKey.id, false);
-    }
-  }
-
-  // B. Ajouter ou mettre à jour les clés distantes
+  await deleteAllKeyRecords();
   for (const remoteKey of remoteKeys) {
-    // Si la clé n'existe pas localement ou a été modifiée, on l'enregistre
-    if (!localKeyIds.has(remoteKey.id)) {
-      await saveKeyRecord(remoteKey, false);
-    }else  if(!localKeys.find(k => k.id === remoteKey.id && k.encryptedPrivateKey === remoteKey.encryptedPrivateKey)) {
-        await deleteKeyRecord(remoteKey.id, false);
-        await saveKeyRecord(remoteKey, false);
-        await clearDangerousStorage();
-    }
+    await saveKeyRecord(remoteKey, false);
   }
 }
 

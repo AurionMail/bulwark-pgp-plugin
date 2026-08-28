@@ -6,9 +6,9 @@ import { config } from "../../shared.ts";
 /*
 * Change password with SSO API
 */
-export async function changePassword(username :string, oldPassword :string, newPassword :string) {
+export async function changePasswordAurionProcess(username :string, oldPassword :string, newPassword :string) {
   await opaque.ready;
-  const SSOURL = await config('AurionURL'); 
+  const SSOURL = await config('SSOURL'); 
   try {
     // =========================================================================
     // ÉTAPE 1 : Generate new RECORD 
