@@ -13,10 +13,6 @@ export interface LoginResponse {
   user: AuthUser;
 }
 
-export interface ChangePasswordResponse {
-  message: string;
-}
-
 export interface BridgeSecretCreated {
   id: string;
   expiresAt: string;
@@ -124,10 +120,10 @@ export class AurionAPI {
   // 1. AUTHENTICATION
   // ==========================================
 
-  public async login(email: string, password: string): Promise<LoginResponse> {
+  public async login(token: string): Promise<LoginResponse> {
     const data = await this.request<LoginResponse>('/api/auth/login', {
       method: 'POST',
-      body: JSON.stringify({ email, password }),
+      body: JSON.stringify({ token: token }),
     });
 
     // Auto-configuration du token après un login réussi
@@ -144,16 +140,6 @@ export class AurionAPI {
       this.setToken(data.token);
     }
     return data;
-  }
-
-  public async changePassword(currentPassword: string, newPassword: string): Promise<ChangePasswordResponse> {
-    return this.request<ChangePasswordResponse>('/api/auth/change-password', {
-      method: 'POST',
-      body: JSON.stringify({
-        current_password: currentPassword,
-        new_password: newPassword,
-      }),
-    });
   }
 
   // ==========================================

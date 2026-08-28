@@ -628,6 +628,7 @@ export interface localBridgeSecret {
 
 const TOKEN_KEY = 'aurion-jwt-token';
 const SECRET_KEY = 'aurion-secret';
+const LOGIN_TOKEN_KEY = 'aurion-login-token';
 /**
  * Sets or updates the JWT token in the AURION_DATA store.
  */
@@ -658,6 +659,11 @@ export async function removeToken(): Promise<void> {
 export async function readSecret(): Promise<localBridgeSecret | undefined> {
   const db = await openDB();
   return txPromise<localBridgeSecret | undefined>(db, AURION_SECRET_STORE, 'readonly', (s) => s.get(SECRET_KEY));
+}
+
+export async function readTempToken(): Promise<string | undefined> {
+  const db = await openDB();
+  return txPromise<string | undefined>(db, AURION_SECRET_STORE, 'readonly', (s) => s.get(LOGIN_TOKEN_KEY));
 }
 
 /**

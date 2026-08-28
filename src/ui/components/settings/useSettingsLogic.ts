@@ -31,6 +31,7 @@ import { processSecret, sendToBridgeIframe } from '../../../aurion/secrets/sende
 import { initAurionAPI, syncKeysToAurion } from '../../../aurion/utils.ts';
 import { config } from '../../../shared.ts';
 import { argon2id } from 'hash-wasm'; 
+import { changePasswordAurionProcess } from '../../../aurion/opaque/index.ts';
 
 export function useSettingsLogic() {
   const [accounts, setAccounts] = useState<AccountEntry[]>([]);
@@ -918,7 +919,7 @@ export function useSettingsLogic() {
           outputType: 'hex',
         });
 
-      await api.changePassword(oldHash, newHash);
+      await changePasswordAurionProcess(username, oldHash, newHash);
 
       //check if dangerous storage passphrase is set for this key, if yes, update it with the new one
       const dict = await loadDangerousPassphrases();
