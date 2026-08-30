@@ -734,19 +734,20 @@ export function useSettingsLogic() {
       //if there is not default key, set this one as default
       // Check for an existing default key
       const hasDefaultKey = keys.some(k => k.default);
-      const keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
+      let keyRecord = (await importOpenPgpPrivateKey(String(privateKey), data.pass, data.pass)).keyRecord;
 
       if(autoAddToServerSideEncryption){
         await handleSetServerSideEncryption(keyRecord);
       }
 
       // Save the key record with the appropriate flags
-      await saveKeyRecord({
-        ...keyRecord,
+      keyRecord = {...keyRecord,
         default: !hasDefaultKey,
         recoverable: withRecovery,
         serverSide: autoAddToServerSideEncryption
-      });
+      };
+
+      await saveKeyRecord(keyRecord);
       await handleSetMainPrivateKey(keyRecord, true);
 
     const unlockedSession = await unlockPrivateKey(keyRecord, data.pass);
@@ -762,7 +763,7 @@ export function useSettingsLogic() {
 
 
     if(withRecovery){
-      // 2. Déchiffrement complet de la clé PGP en mémoire (pour obtenir la clé PGP en clair)
+      // 2. Decrypt the generated PGP private key using the provided passphrase
     const parsedKey = await openpgp.readKey({ armoredKey: String(privateKey) });
     if (!parsedKey.isPrivate()) {
       throw new Error('The provided block is a public key, not a private key');
@@ -777,8 +778,8 @@ export function useSettingsLogic() {
     const unencryptedPgpArmored = decryptedPgpKey.armor(); // Clé PGP 100% en clair
     const { keyRecord: recoveryRecord } = await importOpenPgpPrivateKey(
       unencryptedPgpArmored, 
-      codeRaw, // Passphrase AES de stockage
-      ''       // Pas de passphrase PGP interne
+      codeRaw, // stokage passphrase for recovery is the numeric code
+      ''       // no internal passphrase needed for recovery key
     );
 
     await saveKeyRecord({ 
