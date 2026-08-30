@@ -1,6 +1,7 @@
 import host from '@plugin-host';
 import React from 'react';
 import { settings } from '../../../shared.ts';
+import { listKeyRecords } from '../../../storage.ts';
 
 const h = React.createElement;
 const { useState, useEffect } = React;
@@ -75,6 +76,11 @@ export function AccountState(props: AccountStateProps) {
         console.log(atRestConfig);
         isAtRestEnabled = atRestConfig.type !== 'Disabled';
 
+        // fallback : sometimes, when starting the app, host says Disabled but it is false, so we check the keys.
+        if (!isAtRestEnabled) {
+          const keys = await listKeyRecords(accountId);
+          isAtRestEnabled = keys.some(k => k.serverSide);
+        }
 
         const encryptionAtRestStatus: SubCardState = isAtRestEnabled
           ? {
