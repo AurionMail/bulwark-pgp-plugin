@@ -1,7 +1,7 @@
 {
   "id": "aurion-pgp-true-end-to-end",
   "name": "Aurion PGP",
-  "version": "2.0.0",
+  "version": "1.0.1",
   "author": "Aurion Community",
   "description": "End-to-end OpenPGP for webmail: sign and encrypt outgoing messages, and automatically verify signatures and decrypt incoming PGP mail. Private keys are encrypted at rest with a passphrase, and unlocked into non-extractable WebCrypto keys that never leave your browser. Runs in the privileged (same-origin) plugin tier so all cryptography happens locally.",
   "type": "ui-extension",
@@ -38,7 +38,7 @@
     "https://sso.aurionmail.org"
   ],
   "entrypoint": "index.js",
-  "minAppVersion": "1.9.0",
+  "minAppVersion": "1.7.8",
   "icon": "media/icon.svg",
   "banner": "media/banner.svg",
   "configSchema": {
@@ -105,13 +105,10 @@
       "default": true
     },
     "askForDefaultKeyPassOnActivated": {
-      "type": "select",
+      "type": "boolean",
       "label": "Ask for the passphrase when booting the app.",
-      "description": "Ask for the passphrase to unlock your default key when booting the app, for default account or all accounts.",
-      "default": "false",
-      "options": [
-        "false", "default", "all"
-      ]
+      "description": "Ask for the passphrase decrypting your default key when booting the app. Avoid to go to settings to manually unlock your key.",
+      "default": false
     },
     "alwaysSendPubKey": {
       "type": "boolean",
@@ -148,23 +145,10 @@
       "label": "Lock keys on logout",
       "description": "Whether to lock all keys when the user logs out. This is used only when StoreDangerous is enabled. This is useful if you want to avoid leaving unlocked keys in memory when the user logs out.",
       "default": false
-    },
-    "generateKey": {
-      "type": "select",
-      "label": "Which engine to use for key generation",
-      "description": "Which engine to use for key generation. curve25519 is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail. ed25519Legacy is a legacy version of ed25519 that is compatible with older clients. rsa4096 is a more traditional algorithm that is compatible with all clients, but it is slower than curve25519.",
-      "default": true,
-      "options": [
-        "curve25519",
-        "ed25519Legacy",
-        "rsa4096"
-      ]
     }
   },
   "locales": {
     "en": {
-      "settings.popup_title": "Popup",
-      "settings.popup_message": "To continue, please make sure to allow the popup to open. This is required, if you do not allow this popup, you will lose data of Cryptpad.",
       "banner.signed_valid": "Signature valid",
       "banner.signed_invalid": "Signature invalid",
       "banner.encrypted": "Encrypted message",
@@ -176,7 +160,7 @@
       "settings.private_keys_title": "Your OpenPGP keys",
       "settings.private_keys_desc": "Import an armored OpenPGP private key (.asc/.key). The key remains encrypted locally in your browser sandbox.",
       "settings.no_private_keys": "No keys imported yet.",
-      "settings.default_badge": "Used as default key for account (index/draft encryption)",
+      "settings.default_badge": "Default",
       "settings.key_created": "created",
       "settings.key_expires": "expires",
       "settings.key_no_expiration": "no expiration",
@@ -186,7 +170,7 @@
       "settings.action.lock": "Lock this key",
       "settings.action.unlock": "Unlock this key",
       "settings.action.delete": "Delete this key",
-      "settings.action.upload_server": "Enable server-side encryption with this key",
+      "settings.action.upload_server": "Upload this key to server and enable server-side encryption with this key",
       "settings.add_private_key": "Add a private key",
       "settings.public_keys_title": "Recipient public keys",
       "settings.public_keys_desc": "Public keys (ASCII Armored) of contacts you send encrypted mail to.",
@@ -277,9 +261,7 @@
       "settings.json_backup_title": "JSON Backup",
       "settings.json_backup_desc": "Export all your OpenPGP keys and settings as a JSON file. This file is encrypted with your default key's passphrase, so keep it safe.",
       "settings.export_json": "Export to JSON",
-      "settings.export_json_account": "Export to JSON for this account",
       "settings.import_json": "Import from JSON",
-      "settings.import_json_account": "Import from JSON for this account",
       "settings.search_public_key": "Search public key",
       "settings.success.json_imported": "Plugin data imported successfully!",
       "settings.error.json_import_failed": "JSON import failed: {message}",
@@ -297,8 +279,7 @@
       "banner.title_signed": "Digital Signature",
       "banner.encrypted_label": "Encryption State",
       "banner.sig_label": "Signature State",
-      "banner.decrypted_success": "End-to-end decryption successful",
-      "banner.encrypted_server": "Automatically encrypted by Stalwart",
+      "banner.decrypted_success": "Successfully decrypted",
       "banner.encrypted_locked": "Encrypted message (key locked)",
       "banner.encrypted_prefix": "Decryption error: ",
       "banner.processing": "Verifying...",
@@ -336,36 +317,7 @@
       "prompt.block_until_default_key_is_available.message_sending": "Your organisation has enabled the 'Block until default key is available' option, but your default key is not unlocked. Please unlock your default key in OpenPGP settings to continue. You will not be able to send emails until your default key is unlocked. This email was NOT sent.",
       "settings.confirm.delete_private_confirm_label": "Type the email of the key to confirm deletion: ",
       "settings.persisted_badge": "Persisted",
-      "settings.server_side_badge": "Used for server encryption ",
-      "settings.action.options": "More options",
-      "settings.action.change_passphrase": "Change passphrase",
-      "settings.pro_mode_desc": "Display all keys (all accounts)",
-      "settings.pro_mode_title": "Pro Mode",
-      "settings.account_mode_desc": "Keys for account",
-      "prompt.unlock_default_key.webauthn_title": "Unlock your keys with WebAuthn",
-      "prompt.unlock_default_key.webauthn_message": "Continue to use WebAuthn to unlock your keys. If you cancel, you will have to unlock your keys manually with your passphrase.",
-      "settings.confirm.remove_webauthn_title": "Remove WebAuthn",
-      "settings.confirm.remove_webauthn_msg": "Are you sure you want to remove WebAuthn for this key? You will have to unlock your key with your passphrase.",
-      "settings.success.webauthn_removed": "WebAuthn removed for this key",
-      "settings.action.remove_webauthn": "Remove WebAuthn",
-      "settings.action.remove": "Remove",
-      "settings.action.upload_public_key": "Upload public key to keys.openpgp.org",
-      "settings.action.download_public_key": "Download public key (.asc)",
-      "settings.action.make_default": "Make default for account (index/draft encryption)",
-      "settings.action.make_main": "Make default for email",
-      "settings.success.main_key_set": "Key {email} defined as default for email",
-      "settings.main_badge": "Used as main key for email",
-      "account.encryption_ok" : "Your emails are encrypted by default, for recipients with public keys. We will try to automatically get their public key if available.",
-      "account.encryption_warn" : "You can encrypt emails, but it wont be by default or you will loose oportunities to use E2E. You can enable in plugin settings Default Encryption and Missing Key Fetching",
-      "account.at_rest_ok" : "Encryption at rest is configured for this account. It means unecrypted mails sent to you will be automatically encrypted in storage with your key.",
-      "account.at_rest_error" : "Encryption at rest is not enabled for this account. Unencrypted mails sent to you won't be encrypted on storage. Admins can read unencrypted emails",
-      "account.draft_ok" : "Drafts and Attachments are encrypted. If you send emails to recipients with a key, it enable real E2E encryption",
-      "account.draft_error" : "Drafts and Attachments are not encrypted. If you send emails to recipients with public key, admin can still read your email by searching for your draft.",
-      "account.encryption" : "Emails Encryption",
-      "account.encryptionAtRest" : "Encryption at rest",
-      "account.draftEncryption" : "Drafts encryption",
-      "account.state_title" : "Account Encryption Check",
-      "account.state_subtitle" : "Check for real E2E encryption with PGP"
+      "settings.server_side_badge": "Used for server encryption "
     }
   }
 }
