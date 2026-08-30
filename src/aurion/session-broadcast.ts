@@ -38,6 +38,7 @@ export function initAurionBackgroundSessionListener(): void {
           requestId: msg.requestId
         });
         host.storage.set('logoutAsked', Date.now());
+        host.storage.set('forceLogout', Date.now());
         host.user.logout();
         break;
       }

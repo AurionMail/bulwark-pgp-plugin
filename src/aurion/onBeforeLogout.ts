@@ -4,6 +4,11 @@ import { sendToBridgeIframe } from "./secrets/sender.ts";
 export async function onBeforeLogout(args: any): Promise<boolean> {
   console.log("onBeforeLogout: removing sensitive data and logging out");
 
+  const forceLogout = new Date(await host.storage.get('forceLogout'));
+  if (forceLogout && (Date.now() - forceLogout.getTime()) < 120000) {
+    return true;
+  }
+
   const logoutRequired = new Date(await host.storage.get('logoutRequired'));
   if (logoutRequired && (Date.now() - logoutRequired.getTime()) < 120000) {
         const ssoDomain = await config('SSOURL');
