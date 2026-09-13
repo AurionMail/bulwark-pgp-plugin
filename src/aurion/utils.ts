@@ -44,8 +44,9 @@ export async function activateAurionAPI(): Promise<boolean> {
     const tempToken = await readTempToken();
     let masterPass: string | undefined = undefined;
     if (secret && tempToken) {
+      if(await config('ExternalSSO') !== true){// in case of external sso, we don't have password from auth step, user need to put its aurion password.
         masterPass = await consumeSecret(secret.id);
-        
+      }
         host.log.info(`Using secret: ${masterPass} to authenticate with AurionAPI.`);
         
         const data = await api.login(tempToken);

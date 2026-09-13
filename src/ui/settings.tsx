@@ -13,6 +13,7 @@ export function SettingsSection() {
 const {
   accounts,
     selectedAccountId,
+    showAurionPassphrase,
     selectAccount,
     keys, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
@@ -58,10 +59,11 @@ const {
         busy: busy,
         onImportClick: () => fileRef.current && fileRef.current.click(),
         onJsonImport: () => jsonFileRef.current && jsonFileRef.current.click(),
-        onGenerate: (name, email) => {
+        onGenerate: (name, email, pass) => {
           // Fire the modified generation logic
-          void handleGenerateKey({ name, email, pass: '' }, false, true);
-        }
+          void handleGenerateKey({ name, email, pass }, false, true);
+        },
+        showAurionPassphrase
       })
     );
   }

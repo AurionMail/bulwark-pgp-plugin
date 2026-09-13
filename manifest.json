@@ -86,10 +86,17 @@
     },
     "SSOURL": {
       "type": "string",
-      "label": "SSO URL",
+      "label": "Aurion SSO URL",
       "description": "The URL of the SSO Server",
       "default": "https://localhost:8080"
+    },
+    "ExternalSSO": {
+      "type": "boolean",
+      "label": "External SSO",
+      "description": "Use external SSO to login to AurionMail",
+      "default": false
     }
+    
   },
   "settingsSchema": {
     "autoImportSignerCerts": {

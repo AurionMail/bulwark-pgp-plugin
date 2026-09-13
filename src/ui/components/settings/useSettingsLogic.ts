@@ -40,6 +40,7 @@ export function useSettingsLogic() {
   const [unlocked, setUnlocked] = useState<Record<string, boolean>>({});
   const [persisted, setPersisted] = useState<Record<string, boolean>>({});
   const [busy, setBusy] = useState<boolean>(false);
+  const [showAurionPassphrase, setShowAurionPassphrase] = useState<boolean>(false);
   
   const fileRef = useRef<HTMLInputElement | null>(null);
   const certFileRef = useRef<HTMLInputElement | null>(null);
@@ -71,6 +72,7 @@ export function useSettingsLogic() {
       } finally {
         if (isMounted) setBusy(false);
       }
+      setShowAurionPassphrase(await config('ExternalSSO'));
     }
 
     void loadAccounts();
@@ -968,6 +970,7 @@ export function useSettingsLogic() {
     accounts,
     selectedAccountId,
     selectAccount,
+    showAurionPassphrase,
     keys, unlocked, persisted, busy,
     fileRef, certFileRef, jsonFileRef,
     searchEmail, setSearchEmail, gen, setGen,
