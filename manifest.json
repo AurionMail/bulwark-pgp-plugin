@@ -123,7 +123,7 @@
       "type": "select",
       "label": "Which engine to use for key generation",
       "description": "Which engine to use for key generation. curve25519 is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail. ed25519Legacy is a legacy version of ed25519 that is compatible with older clients. rsa4096 is a more traditional algorithm that is compatible with all clients, but it is slower than curve25519.",
-      "default": true,
+      "default": "rsa4096",
       "options": [
         "curve25519",
         "ed25519Legacy",
