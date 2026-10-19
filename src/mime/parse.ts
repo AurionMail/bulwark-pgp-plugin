@@ -204,12 +204,155 @@ function decodeText(node: MimeNode): string {
   }
 }
 
+/**
+ * Decode RFC 2047 encoded words:
+ * =?UTF-8?B?...?=
+ * =?UTF-8?Q?...?=
+ */
+function decodeMimeWords(value: string): string {
+  return value
+    .replace(/(\?=)[ \t]+(?==\?)/g, '$1')
+    .replace(
+      /=\?([^?]+)\?([bq])\?([^?]*)\?=/gi,
+      (full, charset, encoding, encoded) => {
+        try {
+          let bytes: Uint8Array;
+
+          if (encoding.toLowerCase() === 'b') {
+            bytes = Uint8Array.from(
+              atob(encoded.replace(/\s/g, '')),
+              ch => ch.charCodeAt(0)
+            );
+          } else {
+            const text = encoded.replace(/_/g, ' ');
+            const values: number[] = [];
+
+            for (let i = 0; i < text.length; i++) {
+              if (
+                text[i] === '=' &&
+                /^[0-9a-f]{2}$/i.test(text.slice(i + 1, i + 3))
+              ) {
+                values.push(parseInt(text.slice(i + 1, i + 3), 16));
+                i += 2;
+              } else {
+                values.push(text.charCodeAt(i));
+              }
+            }
+
+            bytes = Uint8Array.from(values);
+          }
+
+          return new TextDecoder(charset, { fatal: true })
+            .decode(bytes);
+        } catch {
+          return full;
+        }
+      }
+    );
+}
+
+/**
+ * Decode RFC 2231 filename* values.
+ * Example: UTF-8''%D0%A2%D0%B5%D1%81%D1%82.xls
+ */
+function decodeRfc2231(value: string): string {
+  const match = /^([^']*)'[^']*'(.*)$/s.exec(value);
+  const charset = match?.[1] || 'utf-8';
+  const encoded = match?.[2] ?? value;
+
+  try {
+    const binary = encoded.replace(
+      /%([0-9a-f]{2})/gi,
+      (_, hex) => String.fromCharCode(parseInt(hex, 16))
+    );
+
+    const bytes = Uint8Array.from(
+      binary,
+      ch => ch.charCodeAt(0)
+    );
+
+    return new TextDecoder(charset, { fatal: true })
+      .decode(bytes);
+  } catch {
+    return value;
+  }
+}
+
+/**
+ * Extract MIME header parameters without splitting
+ * semicolons inside quoted values.
+ */
+function mimeParams(header: string): Record<string, string> {
+  const params: Record<string, string> = {};
+
+  const re =
+    /;\s*([^\s=;]+)\s*=\s*(?:"((?:\\.|[^"\\])*)"|([^;]*))/g;
+
+  let match: RegExpExecArray | null;
+
+  while ((match = re.exec(header)) !== null) {
+    params[match[1].toLowerCase()] =
+      (match[2] ?? match[3] ?? '')
+        .trim()
+        .replace(/\\(.)/g, '$1');
+  }
+
+  return params;
+}
+
+/**
+ * Read a MIME parameter, preferring RFC 2231
+ * extended and continuation values.
+ */
+function readMimeParam(
+  params: Record<string, string>,
+  name: string
+): string | undefined {
+  const chunks: string[] = [];
+
+  for (let i = 0; i < 100; i++) {
+    const chunk =
+      params[`${name}*${i}*`] ??
+      params[`${name}*${i}`];
+
+    if (chunk === undefined) break;
+    chunks.push(chunk);
+  }
+
+  if (chunks.length) {
+    return decodeMimeWords(decodeRfc2231(chunks.join('')));
+  }
+
+  if (params[`${name}*`] !== undefined) {
+    return decodeMimeWords(
+      decodeRfc2231(params[`${name}*`])
+    );
+  }
+
+  if (params[name] !== undefined) {
+    return decodeMimeWords(params[name]);
+  }
+
+  return undefined;
+}
+
+/**
+ * Extract and decode the original attachment filename.
+ */
 function filenameFor(node: MimeNode): string {
-  const cd = node.headers['content-disposition'] || '';
-  const m = cd.match(/filename\*?=(?:"([^"]+)"|([^;]+))/i);
-  if (m) return (m[1] || m[2] || '').trim();
-  if (node.params.name) return node.params.name;
-  return 'attachment';
+  const disposition = mimeParams(
+    node.headers['content-disposition'] || ''
+  );
+
+  const contentType = mimeParams(
+    node.headers['content-type'] || ''
+  );
+
+  return (
+    readMimeParam(disposition, 'filename') ||
+    readMimeParam(contentType, 'name') ||
+    'attachment'
+  );
 }
 
 function collect(node: MimeNode, out: OutputCollector): void {
