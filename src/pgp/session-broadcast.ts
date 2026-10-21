@@ -1,6 +1,6 @@
 import { getPreview, search } from '../cache.ts';
 import { config, settings } from '../shared.ts';
-import { DecryptedCachePayload, getPluginData, listKeyRecords, SessionKeysEntry } from '../storage.ts';
+import { DecryptedCachePayload, getPluginData, listKeyRecords, savePluginData, SessionKeysEntry } from '../storage.ts';
 import { deriveSecret } from './key-utils.ts';
 import { loadDangerousPassphrases, getKeyRecord } from '../storage.ts';
 import { unlockPrivateKey } from './import.ts'; 
@@ -120,6 +120,23 @@ export function initBackgroundSessionListener(): void {
           secret: secret,
           data: data
         });
+        })();
+        break;
+      }
+
+      case 'REQUEST_ADD_CUSTOM_SECRET': {
+        (async () => {
+          let ok = false;
+          try {
+            const allKeys = await listKeyRecords();
+            const defaultKey = allKeys.find(k => k.default === true && k.accountId === msg.accountId);
+            const unlocked = defaultKey && _backgroundSessionKeys[defaultKey.id]?.hmacKey;
+            if (unlocked && !(await getPluginData(msg.salt, msg.accountId))) {
+              await savePluginData(msg.salt, msg.data, msg.accountId); 
+              ok = true;
+            }
+          } catch (e) { console.error(e); }
+          channel.postMessage({ type: 'RESPONSE_ADD_CUSTOM_SECRET', requestId: msg.requestId, ok });
         })();
         break;
       }
