@@ -66,7 +66,7 @@ async function blobToBytes(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-async function resolveIntent(req:any) {
+export async function resolveIntent(req:any) {
   const pick = (...vals:any[]) => {
     for (const v of vals) if (typeof v === 'boolean') return v;
     return undefined;
