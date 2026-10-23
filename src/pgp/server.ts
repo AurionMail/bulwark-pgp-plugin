@@ -26,9 +26,9 @@ function getBaseUrl(opts?: KeyServerOptions): string {
 }
 
 async function getArmored(url: string): Promise<string | null> {
-  let res: Response;
+  let res: Awaited<ReturnType<typeof host.http.fetch>>;
   try {
-    res = await fetch(url, { headers: { Accept: "application/pgp-keys" }, redirect: "follow" });
+    res = await host.http.fetch(url, { headers: { Accept: "application/pgp-keys" } });
   } catch (_) {
     throw new Error("Could not reach the keyserver — the network request was blocked or failed.");
   }
@@ -36,7 +36,7 @@ async function getArmored(url: string): Promise<string | null> {
   if (res.status === 404) return null; // No such key
   if (!res.ok) throw new Error(`Keyserver returned HTTP ${res.status}.`);
 
-  const text = await res.text();
+  const text = res.bodyText ?? "";
   if (!/BEGIN PGP PUBLIC KEY BLOCK/.test(text)) {
     throw new Error("Keyserver did not return a valid OpenPGP public key.");
   }
@@ -44,9 +44,9 @@ async function getArmored(url: string): Promise<string | null> {
 }
 
 async function postJson<T>(url: string, body: unknown): Promise<T> {
-  let res: Response;
+  let res: Awaited<ReturnType<typeof host.http.fetch>>;
   try {
-    res = await fetch(url, {
+    res = await host.http.fetch(url, {
       method: "POST",
       headers: { "Content-Type": "application/json", Accept: "application/json" },
       body: JSON.stringify(body),
@@ -55,7 +55,7 @@ async function postJson<T>(url: string, body: unknown): Promise<T> {
     throw new Error("Could not reach the keyserver — the network request was blocked or failed.");
   }
 
-  const text = await res.text();
+  const text = res.bodyText ?? "";
   let json: any = null;
   try {
     json = text ? JSON.parse(text) : null;
