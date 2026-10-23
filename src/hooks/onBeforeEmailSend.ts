@@ -6,7 +6,8 @@ import { unlockPrivateKey } from "../pgp/import.ts";
 import { broadcastUnlockKey } from "../pgp/session-broadcast.ts";
 import { getDefaultPublicKeyForEncryption, getKeyRecord } from "../storage.ts";
 import { unlockedDecryptMaps } from "../util.ts";
-import { signingKeyRecordForEmail } from "./onComposeSend.ts";
+import { resolveIntent, signingKeyRecordForEmail } from "./onComposeSend.ts";
+import { config } from "../shared.ts";
 import host from '@plugin-host';
 
 async function ensureKeyUnlocked(keyId: string, email: string, unlockedKeys: Map<string, any>): Promise<boolean> {
@@ -56,6 +57,15 @@ async function ensureKeyUnlocked(keyId: string, email: string, unlockedKeys: Map
 }
 
 export async function onBeforeEmailSend(req: any): Promise<boolean> {
+  // Plain mail must not require a PGP key or passphrase unless admin policy
+  // explicitly requires keys. onComposeSend will then use the ordinary path.
+  const { sign, encrypt } = await resolveIntent(req);
+  if (!sign && !encrypt &&
+      (await config('forceEncryption')) !== true &&
+      (await config('blockUntilDefaultKeyIsAvailable')) !== true) {
+    return true;
+  }
+
   const fromEmail = req.fromEmail;
 
   const signingKeyRecord = await signingKeyRecordForEmail(fromEmail);
