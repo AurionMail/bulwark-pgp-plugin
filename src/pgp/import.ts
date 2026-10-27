@@ -85,6 +85,7 @@ export async function importOpenPgpPrivateKey(
     id: generateUUID(),
     accountId,
     email,
+    emails: [...new Set<string>(keyInfo.emailAddresses.map((e: string) => e.toLowerCase()))],
     publicKey: keyInfo.armoredPublicKey || '',
     encryptedPrivateKey: encrypted,
     salt,
