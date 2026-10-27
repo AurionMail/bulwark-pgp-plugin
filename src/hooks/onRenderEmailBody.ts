@@ -107,8 +107,19 @@ async function loadPublicKeys(fromEmail: string): Promise<any[]> {
     c.emails && Object.values(c.emails as Record<string, ContactEmail>).some(e => e.address.toLowerCase() === normalizedEmail)
   );
 
+  // Our own keys, under any of their User IDs: the contact made at import
+  // only carries the first one, so mail sent from another address of the
+  // same key could not be verified ("Could not find signing key"). They come
+  // first: the contact may hold an older copy of the key, with fewer User IDs.
+  const armoredKeys: (string | undefined)[] = [];
+  for (const rec of await listKeyRecords()) {
+    if (rec.publicKey && (await keyRecordEmails(rec)).includes(normalizedEmail)) {
+      armoredKeys.push(rec.publicKey);
+    }
+  }
+
   const cryptoKeys = (existingContact?.cryptoKeys || {}) as Record<string, ContactCryptoKey>;
-  const armoredKeys = Object.values(cryptoKeys)
+  armoredKeys.push(...Object.values(cryptoKeys)
     .filter((key) => key.mediaType === 'application/pgp-keys' || key.uri?.startsWith('data:application/pgp-keys'))
     .map((cryptoKeyEntry) => {
       try {
@@ -116,16 +127,7 @@ async function loadPublicKeys(fromEmail: string): Promise<any[]> {
       } catch (e) {
         return undefined;
       }
-    });
-
-  // Our own keys, under any of their User IDs: the contact made at import
-  // only carries the first one, so mail sent from another address of the
-  // same key could not be verified ("Could not find signing key").
-  for (const rec of await listKeyRecords()) {
-    if (rec.publicKey && (await keyRecordEmails(rec)).includes(normalizedEmail)) {
-      armoredKeys.push(rec.publicKey);
-    }
-  }
+    }));
 
   const knownPublicKeys = await Promise.all(
     armoredKeys.map(async (armoredKey) => {
@@ -350,9 +352,13 @@ async function handleMimeEncrypted(
 
       if (signingKey) {
         const keyInfo = await extractKeyInfo(signingKey);
+        // The key's User ID matching the sender, if any, else its first.
+        const sender = fromEmail.toLowerCase().trim();
+        const signerEmail = keyInfo.emailAddresses.find((e: string) => e.toLowerCase() === sender)
+          ?? keyInfo.emailAddresses[0] ?? '';
         verification.signerCert = {
           id: `signer-${keyInfo.fingerprint.replace(/:/g, '')}`,
-          email: (keyInfo.emailAddresses[0] ?? '').toLowerCase(),
+          email: signerEmail.toLowerCase(),
           fingerprint: keyInfo.fingerprint,
         };
         verification.signerEmailMatch = fromEmail.toLowerCase().trim() === verification.signerCert.email;
