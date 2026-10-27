@@ -1,4 +1,5 @@
 import * as openpgp from 'openpgp';
+import { toCRLF } from './pgp-sign.ts';
 
 /**
  * Encrypts MIME or text content for one or more recipients.
@@ -60,7 +61,7 @@ export async function pgpEncrypt(
   const encryptedArmored = await openpgp.encrypt(encryptOptions);
   
   // 7. Returns a text Blob in standard encrypted OpenPGP format
-  return new Blob([encryptedArmored as string], { type: 'application/pgp-encrypted; charset=utf-8' });
+  return new Blob([toCRLF(encryptedArmored as string)], { type: 'application/pgp-encrypted; charset=utf-8' });
 }
 
 /**
