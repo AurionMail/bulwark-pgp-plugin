@@ -28,7 +28,7 @@ export interface DbMigration {
 }
 export interface KeyRecord {
   id: string;
-  email: string;
+  email: string;// = emails[0], default email
   // Every email User ID of the key, lowercased (`email` is the first one).
   // Records imported before it existed lack it: see keyRecordEmails().
   emails?: string[];

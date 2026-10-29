@@ -37,7 +37,8 @@ const {
     handleDownloadKey,
     removeWebAuthnLink,
     handleSetMainPrivateKey,
-    handleExportPrivateKey
+    handleExportPrivateKey,
+    onMigrate
   } = useSettingsLogic();
 
   if (keys.length === 0) {
@@ -58,6 +59,7 @@ const {
       h(OnboardingFlow, {
         busy: busy,
         onImportClick: () => fileRef.current && fileRef.current.click(),
+        onMigrate: onMigrate,
         onJsonImport: () => jsonFileRef.current && jsonFileRef.current.click(),
         onGenerate: (name, email, pass) => {
           // Fire the modified generation logic

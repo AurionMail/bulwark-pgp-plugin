@@ -1,6 +1,8 @@
 import React from 'react';
 import host from '@plugin-host';
 import { card, selectStyle } from './shared.ts';
+import { AccountEntry } from '../util.ts';
+import { listKeyRecords } from '../storage.ts';
 
 const h = React.createElement;
 const { useState } = React;
@@ -10,6 +12,7 @@ interface OnboardingFlowProps {
   onImportClick: () => void;
   onGenerate: (name: string, email: string, pass: string) => void;
   onJsonImport: () => void;
+  onMigrate: (sourceAccountId: string) => void;
 }
 
 interface UnifiedIdentityOption {
@@ -17,13 +20,16 @@ interface UnifiedIdentityOption {
   defaultName: string;
 }
 
-export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }: OnboardingFlowProps) {
-  const [step, setStep] = useState<number>(1);
+export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport, onMigrate }: OnboardingFlowProps) {
+  const [step, setStep] = useState<number | 'migration'>(1);
   const [name, setName] = useState<string>('');
   const [email, setEmail] = useState<string>('');
   const [pass, setPass] = useState<string>('');
   const [identityOptions, setIdentityOptions] = useState<UnifiedIdentityOption[]>([]);
   const [loadingIdentities, setLoadingIdentities] = useState<boolean>(false);
+  const [accounts, setAccounts] = useState<any[]>([]);
+  const [legacyAccounts, setLegacyAccounts] = useState<string[]>([]);
+  const [selectedSourceAccount, setSelectedSourceAccount] = useState<string>('');
 
   React.useEffect(() => {
     async function loadUserIdentities() {
@@ -33,6 +39,10 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }
           host.user.getAccounts(),
           host.user.getIdentities()
         ]);
+        const keys = await listKeyRecords();
+        const uniqueAccountIds = [...new Set(keys.map((key: any) => key.accountId))];
+        setLegacyAccounts(uniqueAccountIds);
+    
 
         const map = new Map<string, string>(); // Key: email (lowercase), Value: name
 
@@ -87,16 +97,31 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }
   };
 
   if (step === 1) {
-    return h('div', { style: { ...card, padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' } },
-      h('h2', { style: { margin: '0', fontSize: '18px', fontWeight: 600 } }, 'Welcome to Secure Messaging'),
-      h('ul', { style: { margin: 0, paddingLeft: '20px', lineHeight: '1.6', fontSize: '14px', color: 'var(--color-muted-foreground, #64748b)' } },
-        h('li', { style: { marginBottom: '6px' } }, 'Drafts and attachments are locally encrypted for your privacy.'),
-        h('li', { style: { marginBottom: '6px' } }, 'Sending to a recipient without a public key will send 2 separate emails.'),
-        h('li', { style: { marginBottom: '6px' } }, 'You have full control over the persistence of your keys (Passphrase or WebAuthn).'),
-        h('li', { style: { marginBottom: '6px' } }, 'Imported public keys are automatically linked to your contacts.')
+    return h('div', { style: { display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' } },
+      h('div', { style: { ...card, padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px' } },
+        h('h2', { style: { margin: '0', fontSize: '18px', fontWeight: 600 } }, 'Welcome to Secure Messaging'),
+        h('ul', { style: { margin: 0, paddingLeft: '20px', lineHeight: '1.6', fontSize: '14px', color: 'var(--color-muted-foreground, #64748b)' } },
+          h('li', { style: { marginBottom: '6px' } }, 'Drafts and attachments are locally encrypted for your privacy.'),
+          h('li', { style: { marginBottom: '6px' } }, 'Sending to a recipient without a public key will send 2 separate emails.'),
+          h('li', { style: { marginBottom: '6px' } }, 'You have full control over the persistence of your keys (Passphrase or WebAuthn).'),
+          h('li', { style: { marginBottom: '6px' } }, 'Imported public keys are automatically linked to your contacts.')
+        ),
+        h('div', { style: { display: 'flex', justifyContent: 'flex-end' } },
+          h('button', { className: 'composer-btn', onClick: () => setStep(2) }, 'Continue')
+        )
       ),
-      h('div', { style: { display: 'flex', justifyContent: 'flex-end' } },
-        h('button', { className: 'composer-btn', onClick: () => setStep(2) }, 'Continue')
+      h('div', { style: { ...card, padding: '24px', display: 'flex', flexDirection: 'column', gap: '12px' } },
+        h('h3', { style: { margin: '0', fontSize: '16px', fontWeight: 600 } }, 'Missing your keys?'),
+        h('p', { style: { margin: 0, fontSize: '14px', lineHeight: '1.5', color: 'var(--color-muted-foreground, #64748b)' } },
+          "Can't find your keys or did they disappear? Your mail server address or username might have changed. Try running a migration—it's quick and easy."
+        ),
+        h('div', { style: { display: 'flex', justifyContent: 'flex-end' } },
+          h('button', {
+            className: 'composer-btn',
+            disabled: busy,
+            onClick: () => setStep('migration')
+          }, 'Start Migration')
+        )
       )
     );
   }
@@ -111,6 +136,34 @@ export function OnboardingFlow({ busy, onImportClick, onGenerate, onJsonImport }
         h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: onImportClick }, 'Upload Existing Key'),
         h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: () => setStep(3) }, 'Generate New Key'),
         h('button', { className: 'composer-btn', style: { flex: 1 }, disabled: busy, onClick: onJsonImport }, 'Import from JSON')
+      ),
+    );
+  }
+
+  if (step === 'migration') {
+    return h('div', { style: { ...card, padding: '28px', display: 'flex', flexDirection: 'column', gap: '16px', maxWidth: '600px' } },
+      h('h2', { style: { margin: '0', fontSize: '18px', fontWeight: 600 } }, 'Migrate your private keys from a previous account'),
+      h('p', { style: { margin: 0, fontSize: '14px', color: 'var(--color-muted-foreground, #64748b)' } }, 
+        'Choose the previous account from which to migrate your keys.'
+      ),
+      h('div', { style: { display: 'flex', flexDirection: 'column', gap: '8px', marginTop: '8px' } },
+        h('select', {
+          value: selectedSourceAccount,
+          disabled: busy || legacyAccounts.length === 0,
+          onChange: (e: React.ChangeEvent<HTMLSelectElement>) => setSelectedSourceAccount(e.target.value),
+          style: selectStyle
+        },
+          legacyAccounts.length === 0
+            ? h('option', { value: '' }, 'No previous accounts found')
+            : legacyAccounts.map(acc => h('option', { key: acc, value: acc }, acc))
+        )
+      ),
+      h('div', { style: { display: 'flex', justifyContent: 'space-between', marginTop: '8px' } },
+        h('button', { className: 'composer-btn', disabled: busy, onClick: () => setStep(2) }, 'Retour'),
+        h('button', { 
+          className: 'composer-btn',
+          onClick: () => onMigrate(selectedSourceAccount || legacyAccounts[0]),
+        }, 'Migrate')
       )
     );
   }
