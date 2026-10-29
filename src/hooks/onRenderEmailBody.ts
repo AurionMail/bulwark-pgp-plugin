@@ -5,7 +5,8 @@ import { pgpVerify } from '../pgp/pgp-verify.ts';
 import { pgpDecrypt, normalizePgpMessage, PgpKeyLockedError } from '../pgp/decrypt.ts';
 import { detectPgp } from '../pgp/detect.ts'; 
 import { parseMime } from '../mime/parse.ts';
-import { decodePgpUri, extractKeyInfo, scanAndImportKeysFromAttachments } from '../pgp/key-utils.ts';
+import { decodePgpUri, extractKeyInfo, keyRecordEmails, scanAndImportKeysFromAttachments } from '../pgp/key-utils.ts';
+import { listKeyRecords } from '../storage.ts';
 
 import { addrList, ContactCryptoKey, ContactEmail} from '../util.ts';
 import { VERIFY_PREFIX, STATE_PREFIX} from '../shared.ts';
@@ -106,21 +107,33 @@ async function loadPublicKeys(fromEmail: string): Promise<any[]> {
     c.emails && Object.values(c.emails as Record<string, ContactEmail>).some(e => e.address.toLowerCase() === normalizedEmail)
   );
 
-  if (!existingContact || !existingContact.cryptoKeys) {
-    return [];
+  // Our own keys, under any of their User IDs: the contact made at import
+  // only carries the first one, so mail sent from another address of the
+  // same key could not be verified ("Could not find signing key"). They come
+  // first: the contact may hold an older copy of the key, with fewer User IDs.
+  const armoredKeys: (string | undefined)[] = [];
+  for (const rec of await listKeyRecords()) {
+    if (rec.publicKey && (await keyRecordEmails(rec)).includes(normalizedEmail)) {
+      armoredKeys.push(rec.publicKey);
+    }
   }
 
-  const cryptoKeys = existingContact.cryptoKeys as Record<string, ContactCryptoKey>;
-  const cryptoKeysList = Object.values(cryptoKeys).filter(
-    (key) => key.mediaType === 'application/pgp-keys' || key.uri?.startsWith('data:application/pgp-keys')
-  );
+  const cryptoKeys = (existingContact?.cryptoKeys || {}) as Record<string, ContactCryptoKey>;
+  armoredKeys.push(...Object.values(cryptoKeys)
+    .filter((key) => key.mediaType === 'application/pgp-keys' || key.uri?.startsWith('data:application/pgp-keys'))
+    .map((cryptoKeyEntry) => {
+      try {
+        return decodePgpUri(cryptoKeyEntry.uri);
+      } catch (e) {
+        return undefined;
+      }
+    }));
 
   const knownPublicKeys = await Promise.all(
-    cryptoKeysList.map(async (cryptoKeyEntry) => {
+    armoredKeys.map(async (armoredKey) => {
+      if (!armoredKey) return undefined;
       try {
-        const armoredKey =  decodePgpUri(cryptoKeyEntry.uri);
-        const readKey = await openpgp.readKey({ armoredKey });
-        return readKey;
+        return await openpgp.readKey({ armoredKey });
       } catch (e) {
         return undefined;
       }
@@ -339,9 +352,13 @@ async function handleMimeEncrypted(
 
       if (signingKey) {
         const keyInfo = await extractKeyInfo(signingKey);
+        // The key's User ID matching the sender, if any, else its first.
+        const sender = fromEmail.toLowerCase().trim();
+        const signerEmail = keyInfo.emailAddresses.find((e: string) => e.toLowerCase() === sender)
+          ?? keyInfo.emailAddresses[0] ?? '';
         verification.signerCert = {
           id: `signer-${keyInfo.fingerprint.replace(/:/g, '')}`,
-          email: (keyInfo.emailAddresses[0] ?? '').toLowerCase(),
+          email: signerEmail.toLowerCase(),
           fingerprint: keyInfo.fingerprint,
         };
         verification.signerEmailMatch = fromEmail.toLowerCase().trim() === verification.signerCert.email;
