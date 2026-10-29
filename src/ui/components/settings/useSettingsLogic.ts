@@ -21,7 +21,7 @@ import {
   subscribeToKeyUpdates
 } from '../../../pgp/session-broadcast.ts';
 import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
-import { AccountEntry, bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
+import { AccountEntry, bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, getCurrentAccountId, PublicKeyInput } from '../../../util.ts';
 import { changePassword } from '../../../pgp/change-passphrase.ts';
 import { settings } from '../../../shared.ts';
 
@@ -928,6 +928,26 @@ export function useSettingsLogic() {
     }
   }
 
+  async function onMigrate(sourceAccountId: string){
+    console.log("Migrating keys from account:", sourceAccountId);
+    const records = await listKeyRecords();
+    const currentAccountId =  await getCurrentAccountId();
+    for (const rec of records){
+      console.log("Checking key record:", rec.id, "for account:", rec.accountId);
+
+      if(rec.accountId === sourceAccountId){
+        const updatedKey = {
+          ...rec,
+          accountId: currentAccountId
+        };
+        console.log("Migrating key record:", rec.id, "to account:", currentAccountId);
+        await saveKeyRecord(updatedKey);
+        console.log("Migrated key record:", rec.id, "to account:", currentAccountId);
+      }
+    }
+    await refresh();
+  }
+
   return {
     accounts,
     selectedAccountId,
@@ -955,6 +975,7 @@ export function useSettingsLogic() {
     handleDownloadKey,
     removeWebAuthnLink,
     handleSetMainPrivateKey,
-    handleExportPrivateKey
+    handleExportPrivateKey,
+    onMigrate
   };
 }
