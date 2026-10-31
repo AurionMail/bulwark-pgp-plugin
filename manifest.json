@@ -160,7 +160,7 @@
       "type": "select",
       "label": "Which engine to use for key generation",
       "description": "Which engine to use for key generation. curve25519 is a more modern and secure algorithm than RSA, but it may not be compatible with all email clients, like Protonmail. ed25519Legacy is a legacy version of ed25519 that is compatible with older clients. rsa4096 is a more traditional algorithm that is compatible with all clients, but it is slower than curve25519.",
-      "default": true,
+      "default": "rsa4096",
       "options": [
         "curve25519",
         "ed25519Legacy",
@@ -372,7 +372,12 @@
       "account.encryptionAtRest" : "Encryption at rest",
       "account.draftEncryption" : "Drafts encryption",
       "account.state_title" : "Account Encryption Check",
-      "account.state_subtitle" : "Check for real E2E encryption with PGP"
+      "account.state_subtitle" : "Check for real E2E encryption with PGP",
+      "prompt.export_private_key.title" : "Export Private Key",
+      "prompt.export_private_key.message" : "Export your private key as an armored encrypted PGP key",
+      "settings.success.private_key_exported": "Private key exported successfully!",
+      "settings.error.private_key_export_failed": "Private key export failed.",
+      "settings.action.download_private_key" : "Download private key (.asc)"
     }
   }
 }

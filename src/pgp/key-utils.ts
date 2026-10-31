@@ -8,6 +8,7 @@ import host from '@plugin-host';
 import { importOpenPgpPublicKey } from './import.ts';
 import { contacts } from '@plugin-host';
 import { ContactCard, ContactEmail } from '../util.ts';
+import type { KeyRecord } from '../storage.ts';
 // ── Helpers & Conversions ───────────────────────────────────────────
 
 /**
@@ -55,12 +56,29 @@ function extractEmailAddresses(key: openpgp.PublicKey | openpgp.PrivateKey): str
   const userIDs = key.users || [];
 
   for (const item of userIDs) {
-    if(item.userID){
-      emails.push(item.userID?.email)
+    if(item.userID?.email){
+      emails.push(item.userID.email)
     }
   }
   
   return emails;
+}
+
+/**
+ * Every email address a key record is bound to (all its User IDs, lowercased).
+ * Records imported before `emails` existed only stored their first User ID:
+ * their addresses are read back from the stored public key.
+ */
+export async function keyRecordEmails(record: KeyRecord): Promise<string[]> {
+  if (record.emails?.length) return record.emails;
+  try {
+    const key = await openpgp.readKey({ armoredKey: record.publicKey });
+    const emails = extractEmailAddresses(key).map((e) => e.toLowerCase());
+    if (emails.length) return emails;
+  } catch {
+    // Unreadable public key: fall back to the stored address
+  }
+  return record.email ? [record.email.toLowerCase()] : [];
 }
 
 

@@ -18,7 +18,7 @@ export async function pgpSign(mimeBytes: Uint8Array, unlockedPrivateKey: openpgp
     detached: false // false generates a wrapped signed message (opaque)
   });
 
-  return new Blob([armoredSignedMessage], { type: 'application/pgp-signature; charset=utf-8' });
+  return new Blob([toCRLF(armoredSignedMessage)], { type: 'application/pgp-signature; charset=utf-8' });
 }
 
 /**
@@ -58,5 +58,13 @@ export async function pgpSignDetached(mimeBytes: Uint8Array, unlockedPrivateKey:
     detached: true // True extracts only the -----BEGIN PGP SIGNATURE----- block
   });
 
-  return new Blob([armoredSignature], { type: 'application/pgp-signature; name="signature.asc"' });
+  return new Blob([toCRLF(armoredSignature)], { type: 'application/pgp-signature; name="signature.asc"' });
+}
+
+/**
+ * OpenPGP.js armors with bare LF; the armor goes into a MIME part as is, and
+ * SMTP needs CRLF (strict servers refuse bare LF: "554 bare CR/LF").
+ */
+export function toCRLF(armored: string): string {
+  return armored.replace(/\r?\n/g, '\r\n');
 }

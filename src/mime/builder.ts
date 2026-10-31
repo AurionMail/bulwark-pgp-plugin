@@ -259,13 +259,19 @@ function generateBoundary() {
 
 function formatAddress(addr: { name?: string; addr: string }) {
   if (addr.name) {
-    const escaped = addr.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"');
-    const encodedName = encodeHeaderValue(escaped);
-    return `"${encodedName}" <${addr.addr}>`;
+    // An encoded-word is never valid inside a quoted string (RFC 2047 section 5).
+    const name = /^[\x20-\x7e]*$/.test(addr.name)
+      ? `"${addr.name.replace(/\\/g, '\\\\').replace(/"/g, '\\"')}"`
+      : encodeHeaderValue(addr.name);
+    return `${name} <${addr.addr}>`;
   }
   return addr.addr;
 }
 
+/**
+ * Folds a header at whitespace only: a break inside an encoded-word would make
+ * it undecodable. A token longer than the line goes whole (78 is a SHOULD).
+ */
 function formatHeader(name: string, value: string) {
   const full = `${name}: ${value}`;
   if (full.length <= 76) return full;
@@ -273,9 +279,10 @@ function formatHeader(name: string, value: string) {
   let remaining = full;
   let first = true;
   while (remaining.length > 76) {
-    let breakAt = 76;
-    const spaceIdx = remaining.lastIndexOf(' ', 76);
-    if (spaceIdx > (first ? name.length + 2 : 1)) breakAt = spaceIdx;
+    const minIdx = first ? name.length + 2 : 1;
+    let breakAt = remaining.lastIndexOf(' ', 76);
+    if (breakAt < minIdx) breakAt = remaining.indexOf(' ', 76);
+    if (breakAt < minIdx) break;
     parts.push(remaining.slice(0, breakAt));
     remaining = ' ' + remaining.slice(breakAt).trimStart();
     first = false;
@@ -284,17 +291,36 @@ function formatHeader(name: string, value: string) {
   return parts.join(CRLF);
 }
 
+/**
+ * RFC 2047 Q encoding, split into encoded-words of at most 75 characters
+ * without cutting a UTF-8 sequence; the words are separated by spaces, which
+ * decoders drop between adjacent encoded-words.
+ */
 function encodeHeaderValue(value: string) {
   if (/^[\x20-\x7e]*$/.test(value)) return value;
-  const encoded = Array.from(new TextEncoder().encode(value))
-    .map((b) => {
-      if ((b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x5a) || (b >= 0x61 && b <= 0x7a)) {
-        return String.fromCharCode(b);
-      }
-      return '=' + b.toString(16).toUpperCase().padStart(2, '0');
-    })
-    .join('');
-  return `=?UTF-8?Q?${encoded}?=`;
+  const prefix = '=?UTF-8?Q?';
+  const suffix = '?=';
+  const maxPayload = 75 - prefix.length - suffix.length;
+  const encoder = new TextEncoder();
+  const words: string[] = [];
+  let current = '';
+  for (const char of value) {
+    const encoded = Array.from(encoder.encode(char))
+      .map((b) => {
+        if ((b >= 0x30 && b <= 0x39) || (b >= 0x41 && b <= 0x5a) || (b >= 0x61 && b <= 0x7a)) {
+          return String.fromCharCode(b);
+        }
+        return '=' + b.toString(16).toUpperCase().padStart(2, '0');
+      })
+      .join('');
+    if (current.length + encoded.length > maxPayload) {
+      words.push(current);
+      current = '';
+    }
+    current += encoded;
+  }
+  if (current) words.push(current);
+  return words.map((w) => `${prefix}${w}${suffix}`).join(' ');
 }
 
 function formatDate(date: Date) {

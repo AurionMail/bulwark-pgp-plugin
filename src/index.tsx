@@ -24,6 +24,7 @@ import {restoreKeysFromDangerousStorage} from './pgp/session-broadcast.ts';
 import { onAfterLogout } from './hooks/onAfterLogout.ts';
 import {onBeforeComposeOpenToReply, onBeforeComposeOpenToReplyAll, onBeforeComposeOpenToForward} from './hooks/onBeforeComposeOpenTo.ts';
 import { main } from './migrations/2.0.0.ts';
+import {onBeforeEmailSend} from './hooks/onBeforeEmailSend.ts';
 import { activateAurionAPI, initAurionAPI, syncfromAurion } from './aurion/utils.ts';
 import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
 import { initAurionBackgroundSessionListener } from './aurion/session-broadcast.ts';
@@ -79,7 +80,8 @@ export const hooks = {
   },
   onBeforeComposeOpenToReply,
   onBeforeComposeOpenToReplyAll,
-  onBeforeComposeOpenToForward
+  onBeforeComposeOpenToForward,
+  onBeforeEmailSend,
 };
 
 function shouldShow(extraProps: any) {

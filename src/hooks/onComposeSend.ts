@@ -12,7 +12,7 @@ import {emailsOf, bytesArrayBuffer} from '../util.ts';
 import { config, INTENT_KEY, settings} from '../shared.ts';
 import { isCapable } from '../index.tsx';
 import { checkIsKeyUnlocked, fetchKeyFromBackground } from '../pgp/session-broadcast.ts';
-import { recipientKeysFor } from '../pgp/key-utils.ts';
+import { keyRecordEmails, recipientKeysFor } from '../pgp/key-utils.ts';
 import { pgpDecrypt } from '../pgp/decrypt.ts';
 
 
@@ -45,18 +45,22 @@ export interface ComposeRequest {
   html?: string;      
 }
 
-async function signingKeyRecordForEmail(fromEmail: string | undefined): Promise<KeyRecord | undefined> {
+export async function signingKeyRecordForEmail(fromEmail: string | undefined): Promise<KeyRecord | undefined> {
   if (!fromEmail) return undefined;
 
   const recs = await listKeyRecords();
   const lower = fromEmail.toLowerCase();
 
-  const eligibleRecords = recs.filter(
-    (r) => r.email?.toLowerCase() === lower && r.capabilities?.canSign !== false
-  );
+  // A key with several User IDs signs for each of them, not only its first.
+  const boundRecords: KeyRecord[] = [];
+  for (const r of recs) {
+    if ((await keyRecordEmails(r)).includes(lower)) boundRecords.push(r);
+  }
+
+  const eligibleRecords = boundRecords.filter((r) => r.capabilities?.canSign !== false);
 
   if (eligibleRecords.length === 0) {
-    return recs.find((r) => r.email?.toLowerCase() === lower);
+    return boundRecords[0];
   }
 
   return eligibleRecords.find((r) => r.main === true) || eligibleRecords[0];
@@ -66,7 +70,7 @@ async function blobToBytes(blob: Blob): Promise<Uint8Array> {
   return new Uint8Array(await blob.arrayBuffer());
 }
 
-async function resolveIntent(req:any) {
+export async function resolveIntent(req:any) {
   const pick = (...vals:any[]) => {
     for (const v of vals) if (typeof v === 'boolean') return v;
     return undefined;
@@ -197,7 +201,6 @@ export async function onComposeSend(req: ComposeRequest): Promise<boolean | unde
         })
       );
 
-      // Mettre à jour attachments avec la version déchiffrée
       attachments.splice(0, attachments.length, ...decryptedAttachments);
     }
 

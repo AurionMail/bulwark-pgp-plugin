@@ -22,7 +22,7 @@ import {
   subscribeToKeyUpdates
 } from '../../../pgp/session-broadcast.ts';
 import { uploadKey, requestVerify, lookup } from '../../../pgp/server.ts';
-import { AccountEntry, bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, PublicKeyInput } from '../../../util.ts';
+import { AccountEntry, bufferToBytes, bytesToBuffer, EncryptionAtRestConfig, generateNumericRecoveryCode, generateSalt, getCurrentAccountId, PublicKeyInput } from '../../../util.ts';
 import { changePassword } from '../../../pgp/change-passphrase.ts';
 import { settings } from '../../../shared.ts';
 import { getMasterPass } from '../../../aurion/session-broadcast.ts';
@@ -966,6 +966,73 @@ export function useSettingsLogic() {
     }
   }
 
+  async function handleExportPrivateKey(rec: KeyRecord) {
+
+    const result = await host.ui.prompt({
+      title: host.i18n.t('prompt.export_private_key.title'),
+      message: host.i18n.t('prompt.export_private_key.message'),
+      fields: [{
+        name: 'passphrase',
+        label: host.i18n.t('prompt.unlock_key.passphrase_label'), 
+        type: 'password',
+        required: true 
+      }]
+    });
+
+    if (!result || !result.passphrase) return;
+
+    setBusy(true);
+    try {
+      const passphrase = result.passphrase;
+      const { unlockedPrivateKey } = await unlockPrivateKey(rec, passphrase);
+      const parsedKey = await openpgp.readKey({ armoredKey: unlockedPrivateKey });
+      
+      if (!parsedKey.isPrivate()) {
+        throw new Error("Not a private key");
+      }
+
+      const encryptedPgpKey = await openpgp.encryptKey({
+        privateKey: parsedKey as openpgp.PrivateKey,
+        passphrase: passphrase
+      });
+
+      const armoredExportKey = encryptedPgpKey.armor();
+
+      host.ui.downloadFile({
+        filename: `private_key_${rec.email || 'export'}.asc`, 
+        content: armoredExportKey, 
+        contentType: 'application/pgp-keys'
+      });
+
+      host.toast.success(host.i18n.t('settings.success.private_key_exported'));
+    } catch (err) {
+      const error = err as Error;
+      host.toast.error(host.i18n.t('settings.error.export_failed') + error?.message ? error.message : String(err));
+    } finally {
+      setBusy(false);
+    }
+  }
+
+  async function onMigrate(sourceAccountId: string){
+    console.log("Migrating keys from account:", sourceAccountId);
+    const records = await listKeyRecords();
+    const currentAccountId =  await getCurrentAccountId();
+    for (const rec of records){
+      console.log("Checking key record:", rec.id, "for account:", rec.accountId);
+
+      if(rec.accountId === sourceAccountId){
+        const updatedKey = {
+          ...rec,
+          accountId: currentAccountId
+        };
+        console.log("Migrating key record:", rec.id, "to account:", currentAccountId);
+        await saveKeyRecord(updatedKey);
+        console.log("Migrated key record:", rec.id, "to account:", currentAccountId);
+      }
+    }
+    await refresh();
+  }
+
   return {
     accounts,
     selectedAccountId,
@@ -993,6 +1060,8 @@ export function useSettingsLogic() {
     changePass,
     handleDownloadKey,
     removeWebAuthnLink,
-    handleSetMainPrivateKey
+    handleSetMainPrivateKey,
+    handleExportPrivateKey,
+    onMigrate
   };
 }

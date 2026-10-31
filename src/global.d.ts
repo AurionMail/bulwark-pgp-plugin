@@ -30,6 +30,10 @@ declare module '@plugin-host' {
   };
   export const admin:{
     getConfig(value?: string): Promise<any>;
+  },
+  export const http: {
+    post(path: string, body: Record<string, unknown> | Blob, options?: { headers?: Record<string, string> }) : Promise<{ ok: boolean; status: number; data: unknown }>;
+    fetch(url: string, init?: unknown):Promise<Any>;
   }
   export const user: {
     getAccounts(): Promise<AccountEntry[]>;

@@ -102,7 +102,11 @@ export async function pgpVerify(contentBytes: Uint8Array, fromHeader: string, pg
       // If the key is among the trusted keys passed as arguments, extract its info
       if (signingKey) {
         const keyInfo = await extractKeyInfo(signingKey);
-        const signerEmail = keyInfo.emailAddresses[0] ?? '';
+        // The signer is the key's User ID matching the sender, if any (a key
+        // bound to several addresses signs for each of them), else its first.
+        const sender = fromHeader?.toLowerCase().trim();
+        const signerEmail = keyInfo.emailAddresses.find((e: string) => e.toLowerCase() === sender)
+          ?? keyInfo.emailAddresses[0] ?? '';
 
   // Validate the key validity range
         const now = new Date();

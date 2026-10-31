@@ -3,7 +3,6 @@
  *
  * Three stores:
  * - key-records:   encrypted-at-rest private keys + public keys (durable)
- * - public-certs:  recipient/contact public PGP keys (durable)
  * - local index:      decrypted mail previews + tokens (volatile, cleared on logout)
  */
 import host from '@plugin-host';
@@ -18,6 +17,7 @@ const RECIPIENTS_STORE = 'recipients-cache';
 const DANGEROUS_KEYS_STORE = 'dangerous-keys';
 const DANGEROUS_MASTER_KEY_STORE = 'dangerous-master-key';
 const MIGRATIONS_STORE = 'migrations';
+const PLUGINS_STORAGE = 'plugins-storage';
 // ── AURION DATA ─────────────────────────────────────
 const AURION_DATA = 'aurion-data';
 const AURION_SECRET_STORE = 'aurion-secret'; // Store
@@ -31,7 +31,10 @@ export interface DbMigration {
 }
 export interface KeyRecord {
   id: string;
-  email: string;
+  email: string;// = emails[0], default email
+  // Every email User ID of the key, lowercased (`email` is the first one).
+  // Records imported before it existed lack it: see keyRecordEmails().
+  emails?: string[];
   accountId?: string;
   publicKey: string;
   encryptedPrivateKey: ArrayBuffer; 
@@ -150,6 +153,9 @@ function openDB(): Promise<IDBDatabase> {
       if (!db.objectStoreNames.contains(MIGRATIONS_STORE)) {
         db.createObjectStore(MIGRATIONS_STORE, { keyPath: 'version' });
       }
+      if (!db.objectStoreNames.contains(PLUGINS_STORAGE)) {
+        db.createObjectStore(PLUGINS_STORAGE, { keyPath: 'id' });
+      }
       if (!db.objectStoreNames.contains(AURION_DATA)) {
         db.createObjectStore(AURION_DATA);
       }
@@ -180,6 +186,28 @@ function txPromise<T>(
     req.onsuccess = () => resolve(req.result as T);
     req.onerror = () => reject(req.error);
   });
+}
+// ── Plugins Store ───────────────────────────────────────
+// This is used to store data of others plugin compatible with this plugin, such as calendar-encryption plugin.
+
+export async function savePluginData(pluginId: string, data: any, accountId: string): Promise<void> {
+  const db = await openDB();
+  const entry = {
+    id: pluginId+'___'+accountId,
+    data,
+    accountId
+  };
+  await txPromise<IDBValidKey>(db, PLUGINS_STORAGE, 'readwrite', (s) => s.put(entry));
+}
+
+export async function getPluginData(pluginId: string, accountId: string): Promise<any | undefined> {
+  const db = await openDB();
+  return txPromise<any | undefined>(db, PLUGINS_STORAGE, 'readonly', (s) => s.get(pluginId+'___'+accountId));
+}
+
+export async function deletePluginData(pluginId: string, accountId: string): Promise<void> {
+  const db = await openDB();
+  await txPromise<undefined>(db, PLUGINS_STORAGE, 'readwrite', (s) => s.delete(pluginId+'___'+accountId));
 }
 
 // ── Migrations Store ───────────────────────────────────────
@@ -281,7 +309,7 @@ export async function setDefaultKeyRecord(targetId: string, isChecked: boolean):
   );
 }
 
-export async function getDefaultPublicKeyForEncryption(): Promise<string | undefined> {
+export async function getDefaultPublicKeyForEncryption(onlyId:boolean = false): Promise<string | undefined> {
   const db = await openDB();
   const accountId = await getCurrentAccountId();
   let allKeys = await txPromise<KeyRecord[]>(db, KEY_RECORDS_STORE, 'readonly', (s) => s.getAll());
@@ -289,6 +317,7 @@ export async function getDefaultPublicKeyForEncryption(): Promise<string | undef
   const defaultPrivateKey = allKeys.find((k) => k.default === true);
   
   if (defaultPrivateKey) {
+    if(onlyId) return defaultPrivateKey.id;
     return defaultPrivateKey.publicKey;
   }
   return undefined;
@@ -479,7 +508,6 @@ export async function exportPluginData(accountId?: string): Promise<void> {
   try {
     const db = await openDB();
     let rawKeys: KeyRecord[];
-    let rawCerts: PublicCert[];
     let rawCache: EncryptedMessageCache[];
     let rawMigrations: DbMigration[] = [];
 
@@ -541,8 +569,8 @@ export async function exportPluginData(accountId?: string): Promise<void> {
 export async function importPluginData(jsonContent: string, accountId?: string): Promise<void> {
   try {
     const backup = JSON.parse(jsonContent);
-    if (backup.format !== "openpgp-plugin-backup" || !backup.keys || !backup.certs || !backup.messageCache) {
-      throw new Error("Invalid backup file. Missing keys, certs or message cache.");
+    if (backup.format !== "openpgp-plugin-backup" || !backup.keys) {
+      throw new Error("Invalid backup file. Missing keys or message cache.");
     }
 
     const db = await openDB();
