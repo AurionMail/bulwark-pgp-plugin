@@ -18,6 +18,7 @@
     "ui:composer-sidebar",
     "ui:email-banner",
     "ui:settings-section",
+    "ui:navigation-rail",
     "app:lifecycle",
     "ui:email-details",
     "ui:download-file",
@@ -27,6 +28,7 @@
     "admin:config",
     "account:read",
     "identity:read",
+    "ui:contact-cryptokeys",
     "auth:emit"
   ],
   "httpOrigins": [
