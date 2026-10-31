@@ -1,4 +1,7 @@
-export function fetchCryptDriveSecret(): Promise<string | null> {
+import { getCurrentAccountId } from "../../util.ts";
+
+export async function fetchCryptDriveSecret(): Promise<string | null> {
+  const accountId = await getCurrentAccountId();
   return new Promise((resolve) => {
     const channel = new BroadcastChannel('pgp-session-bus');
     const requestId = Math.random().toString(36).substring(2);
@@ -9,7 +12,6 @@ export function fetchCryptDriveSecret(): Promise<string | null> {
         resolve(event.data.secret);
       }
     };
-
-    channel.postMessage({ type: 'REQUEST_CUSTOM_SECRET', requestId, salt: 'cryptpad-plugin' });
+    channel.postMessage({ type: 'REQUEST_CUSTOM_SECRET', requestId, salt: 'cryptpad-plugin', accountId });
   });
 }
