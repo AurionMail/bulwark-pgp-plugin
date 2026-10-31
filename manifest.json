@@ -1,8 +1,8 @@
 {
-  "id": "pgp-true-end-to-end",
-  "name": "PGP True End-to-End",
-  "version": "2.0.2",
-  "author": "Paulhenry Saux & Community",
+  "id": "aurion-pgp-true-end-to-end",
+  "name": "Aurion PGP",
+  "version": "2.0.0",
+  "author": "Aurion Community",
   "description": "End-to-end OpenPGP for webmail: sign and encrypt outgoing messages, and automatically verify signatures and decrypt incoming PGP mail. Private keys are encrypted at rest with a passphrase, and unlocked into non-extractable WebCrypto keys that never leave your browser. Runs in the privileged (same-origin) plugin tier so all cryptography happens locally.",
   "type": "ui-extension",
   "tier": "privileged",
@@ -26,10 +26,16 @@
     "contacts:write",
     "admin:config",
     "account:read",
-    "identity:read"
+    "identity:read",
+    "auth:emit"
   ],
   "httpOrigins": [
-    "https://keys.openpgp.org"
+    "https://keys.openpgp.org",
+    "https://api.aurionmail.org"
+  ],
+    "frameOrigins": [
+    "https://pad.aurionmail.org",
+    "https://sso.aurionmail.org"
   ],
   "entrypoint": "index.js",
   "minAppVersion": "1.9.0",
@@ -59,7 +65,38 @@
       "label": "Allow persistent keys",
       "description": "Allow users to activate the persistent key feature (unlocked keys stored in indexedDB encrypted with a non extractible webCrypto key).",
       "default": false
+    },
+    "CryptpadURL": {
+      "type": "string",
+      "label": "Cryptpad URL",
+      "description": "The URL of the Cryptpad instance to use. Leave empty to disable the Cryptpad integration",
+      "default": ""
+    },
+    "AurionURL": {
+      "type": "string",
+      "label": "Aurion URL",
+      "description": "The URL of the Aurion Server",
+      "default": "https://localhost:8080"
+    },
+    "HydraURL": {
+      "type": "string",
+      "label": "Hydra URL",
+      "description": "The URL of the Hydra Server",
+      "default": "https://localhost:8080"
+    },
+    "SSOURL": {
+      "type": "string",
+      "label": "Aurion SSO URL",
+      "description": "The URL of the SSO Server",
+      "default": "https://localhost:8080"
+    },
+    "ExternalSSO": {
+      "type": "boolean",
+      "label": "External SSO",
+      "description": "Use external SSO to login to AurionMail",
+      "default": false
     }
+    
   },
   "settingsSchema": {
     "autoImportSignerCerts": {
@@ -133,6 +170,8 @@
   },
   "locales": {
     "en": {
+      "settings.popup_title": "Popup",
+      "settings.popup_message": "To continue, please make sure to allow the popup to open. This is required, if you do not allow this popup, you will lose data of Cryptpad.",
       "banner.signed_valid": "Signature valid",
       "banner.signed_invalid": "Signature invalid",
       "banner.encrypted": "Encrypted message",

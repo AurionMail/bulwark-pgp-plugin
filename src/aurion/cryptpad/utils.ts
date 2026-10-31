@@ -1,0 +1,15 @@
+export function fetchCryptDriveSecret(): Promise<string | null> {
+  return new Promise((resolve) => {
+    const channel = new BroadcastChannel('pgp-session-bus');
+    const requestId = Math.random().toString(36).substring(2);
+
+    channel.onmessage = (event) => {
+      if (event.data?.type === 'RESPONSE_CUSTOM_SECRET' && event.data?.requestId === requestId) {
+        channel.close();
+        resolve(event.data.secret);
+      }
+    };
+
+    channel.postMessage({ type: 'REQUEST_CUSTOM_SECRET', requestId, salt: 'cryptpad-plugin' });
+  });
+}
