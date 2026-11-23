@@ -5,3 +5,8 @@ export async function fetchCryptDriveSecret(): Promise<string | null> {
   const {secret} = await requestCustomSecret('cryptpad-plugin', await getCurrentAccountId() || '')
   return secret;
 }
+
+export async function fetchCryptDriveTreeSecret(): Promise<string | null> {
+  const {secret} = await requestCustomSecret('cryptpad-tree', await getCurrentAccountId() || '')
+  return secret;
+}

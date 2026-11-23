@@ -4,7 +4,7 @@ import { initAurionAPI } from '../utils.ts';
 import { processSecret } from '../secrets/sender.ts';
 import { config } from '../../shared.ts';
 import { sendToBridgeIframe } from '../secrets/sender.ts';
-import { fetchCryptDriveSecret } from './utils.ts';
+import { fetchCryptDriveSecret, fetchCryptDriveTreeSecret } from './utils.ts';
 
 const h = React.createElement;
 
@@ -49,6 +49,16 @@ export function Navbar() {
       }
 
       const { ciphertextHex, ivHex, seedHex } = await processSecret(secret);
+
+      const treeSecret = await fetchCryptDriveTreeSecret();
+      if (!treeSecret) {
+        host.toast.error("Unable to retrieve tree secret. Please ensure your default key is unlocked and try again.");
+        return;
+      }
+      const api = await initAurionAPI();
+      const { ciphertextHex: treeCiphertextHex, ivHex: treeIvHex, seedHex: treeSeedHex } = await processSecret(treeSecret);
+      const {id: treeId} = await api.createBridgeSecret(treeCiphertextHex);
+
       const accounts = await host.user.getAccounts();
       const defaultAccount = accounts.find((acc: any) => acc.isConnected && acc.isDefault);
 
@@ -58,7 +68,6 @@ export function Navbar() {
       }
 
       const { avatarColor, email, serverUrl } = defaultAccount;
-      const api = await initAurionAPI();
       const { id } = await api.createBridgeSecret(ciphertextHex);
 
       await sendToBridgeIframe(cryptpadDomain + '/bridge-minimal.html', cryptpadDomain, {
@@ -67,6 +76,8 @@ export function Navbar() {
         mail: email,
         server: serverUrl,
         color: avatarColor,
+        treeSecret: { id: treeId, seed: treeSeedHex, iv: treeIvHex },
+        aurionToken: api.getToken(),
         logoutAll: logOutAll ? Date.now() : false,
       });
 
