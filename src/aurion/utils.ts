@@ -1,5 +1,5 @@
 import { AurionAPI } from './api.ts';
-import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord, persistPassphraseToDangerousStorage, readTempToken, deleteAllKeyRecords } from '../storage.ts';
+import { readSecret, getToken, setToken, removeSecret, clearDangerousStorage, loadDangerousPassphrases, getKeyRecord, persistPassphraseToDangerousStorage, readTempToken, deleteAllKeyRecords, getPluginsDataForAccount, getPluginsData, savePluginData, deleteAllPluginsData } from '../storage.ts';
 import  host  from '@plugin-host';
 import { 
   listKeyRecords, 
@@ -122,7 +122,7 @@ export async function syncfromAurion(api: AurionAPI): Promise<void> {
   const remoteMessageCache = vaultData.messageCache || [];
 
   // ==========================================
-  // 2. SYNCHRONISATION DU CACHE (Écrasement complet)
+  // 2. cache  sync
   // ==========================================
   await clearAllMessageCache();
   for (const item of remoteMessageCache) {
@@ -130,17 +130,30 @@ export async function syncfromAurion(api: AurionAPI): Promise<void> {
   }
 
   // ==========================================
-  // 3. SYNCHRONISATION DES CLÉS PRIVÉES
+  // 3. Private keys sync
   // ==========================================
 
   await deleteAllKeyRecords();
   for (const remoteKey of remoteKeys) {
     await saveKeyRecord(remoteKey, false);
   }
+
+  await deleteAllPluginsData();
+  for (const pluginData of vaultData.pluginsData) {
+    // remove part after ___ of the id if it exists, to avoid duplicates
+    const cleanId = pluginData.id.split('___')[0];
+    pluginData.id = cleanId;
+    await savePluginData(pluginData.id, pluginData.data, pluginData.accountId);
+  }
+
 }
 
 export async function syncKeysToAurion(api: AurionAPI): Promise<{status: string;}> {
-  return await api.updateKeys(await listKeyRecords());
+  return await api.updateKeys(await listKeyRecords(), await getPluginsData());
+}
+
+export async function syncPluginDataToAurion(api: AurionAPI): Promise<{status: string;}> {
+  return await api.updateKeys([], await getPluginsData());
 }
 
 async function GiveSSOTokenToSSO(api: AurionAPI): Promise<boolean> {

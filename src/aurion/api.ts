@@ -30,6 +30,7 @@ export interface NetworkVaultPayload {
   createdAt: string;
   keys?: any[]; // KeyRecord avec des strings au lieu des ArrayBuffers
   messageCache?: any[]; // EncryptedMessageCache avec des strings
+  pluginsData?: any[];
 }
 
 const base64ToUint8Array = (base64: string): Uint8Array => {
@@ -146,7 +147,7 @@ export class AurionAPI {
   // 2. PGP VAULT
   // ==========================================
 
-  public async getVault(): Promise<{ keys: KeyRecord[]; messageCache: EncryptedMessageCache[] }> {
+  public async getVault(): Promise<{ keys: KeyRecord[]; messageCache: EncryptedMessageCache[], pluginsData: { id: string; data: any; accountId: string;}[] }> {
     const data = await this.request<NetworkVaultPayload>('/api/vault', {
       method: 'GET',
     });
@@ -172,8 +173,9 @@ export class AurionAPI {
       encryptedPayload: base64ToUint8Array(m.encryptedPayload),
       iv: base64ToUint8Array(m.iv),
     }));
+    const pluginsData: { id: string; data: any; accountId: string;}[] = data.pluginsData || []
 
-    return { keys, messageCache };
+    return { keys, messageCache, pluginsData };
   }
 
   public async addMessage(messageCache: EncryptedMessageCache): Promise<{ status: string }> {
@@ -231,7 +233,7 @@ export class AurionAPI {
     });
   }
 
-  public async updateKeys(keys: KeyRecord[]): Promise<{ status: string }> {
+  public async updateKeys(keys: KeyRecord[], pluginsData : {id: string; data: any; accountId: string; }[]): Promise<{ status: string }> {
     const networkKeys = keys?.map((k) => ({
       ...k,
       encryptedPrivateKey: bufferToBase64(k.encryptedPrivateKey),
@@ -252,6 +254,7 @@ export class AurionAPI {
       version: 7,
       createdAt: new Date().toISOString(),
       keys: networkKeys,
+      pluginsData
     };
 
     return this.request<{ status: string }>('/api/vault', {

@@ -7,7 +7,7 @@
  */
 import host from '@plugin-host';
 import { base64ToBuffer, bufferToBase64, getCurrentAccountId } from "./util.ts";
-import { initAurionAPI, syncKeysToAurion } from './aurion/utils.ts';
+import { initAurionAPI, syncKeysToAurion, syncPluginDataToAurion } from './aurion/utils.ts';
 const DB_NAME = 'aurion-plugin-store';
 const DB_VERSION = 13;
 const KEY_RECORDS_STORE = 'key-records';
@@ -198,6 +198,9 @@ export async function savePluginData(pluginId: string, data: any, accountId: str
     accountId
   };
   await txPromise<IDBValidKey>(db, PLUGINS_STORAGE, 'readwrite', (s) => s.put(entry));
+
+  const api = await initAurionAPI();
+  await syncPluginDataToAurion(api);
 }
 
 export async function getPluginData(pluginId: string, accountId: string): Promise<any | undefined> {
@@ -214,6 +217,16 @@ export async function getPluginsDataForAccount(accountId: string): Promise<{id: 
   const db = await openDB();
   const entries = await txPromise<any[]>(db, PLUGINS_STORAGE, 'readonly', (s) => s.getAll());
   return entries.filter((entry) => entry && entry.accountId === accountId);
+}
+
+export async function getPluginsData(): Promise<{id: string; data: any; accountId: string; }[]>{
+  const db = await openDB();
+  return await txPromise<any[]>(db, PLUGINS_STORAGE, 'readonly', (s) => s.getAll());
+}
+
+export async function deleteAllPluginsData(): Promise<void> {
+  const db = await openDB();
+  await txPromise<undefined>(db, PLUGINS_STORAGE, 'readwrite', (s) => s.clear());
 }
 
 // ── Migrations Store ───────────────────────────────────────
