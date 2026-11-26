@@ -29,7 +29,8 @@
     "account:read",
     "identity:read",
     "ui:contact-cryptokeys",
-    "auth:emit"
+    "auth:emit",
+    "compose:write"
   ],
   "httpOrigins": [
     "https://keys.openpgp.org",

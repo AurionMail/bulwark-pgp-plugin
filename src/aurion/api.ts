@@ -1,5 +1,5 @@
 import { KeyRecord, EncryptedMessageCache } from '../storage.ts';
-import { bufferToBase64, base64ToBuffer } from '../util.ts';
+import { bufferToBase64, base64ToBuffer, getCurrentAccountId } from '../util.ts';
 import host from '@plugin-host';
 
 export interface AuthUser {
@@ -173,7 +173,11 @@ export class AurionAPI {
       encryptedPayload: base64ToUint8Array(m.encryptedPayload),
       iv: base64ToUint8Array(m.iv),
     }));
-    const pluginsData: { id: string; data: any; accountId: string;}[] = data.pluginsData || []
+
+    const pluginsData: { id: string; data: any; accountId: string;}[] = (data.pluginsData || []).map((m: { id: string; data: any;}) => ({
+      ...m,
+      accountId: m.id.split('___')[1] || '',
+    }));
 
     return { keys, messageCache, pluginsData };
   }
