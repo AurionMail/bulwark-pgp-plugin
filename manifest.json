@@ -402,7 +402,13 @@
       "tree.picker.title" : "Share files from Cryptpad",
       "tree.links.title" : "Cryptpad links",
       "tree.links.readOnly" : "Read-only",
-      "tree.links.readWrite" : "Read-write"
+      "tree.links.readWrite" : "Read-write",
+      "tree.picker.cancel" : "Cancel",
+      "tree.picker.shareLinks" : "Share links",
+      "tree.picker.sharing" : "Generating links...",
+      "tree.picker.selected" : " file(s) selected",
+      "tree.picker.selectFiles" : "Select one or more files to generate a share link.",
+      "tree.attachMenu" : "Attach from Cryptpad"
     }
   }
 }

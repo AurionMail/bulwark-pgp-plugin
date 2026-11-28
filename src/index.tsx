@@ -114,7 +114,7 @@ export async function activate(api :any) {
 
   locked = await activateAurionAPI();
   const t = api.i18n.t;
-  await api.ui.setActions('composer-attach-menu', [{ id: 'from-cryptpad', label: t('composer.attachMenu'), icon: 'cloud' }]);
+  await api.ui.setActions('composer-attach-menu', [{ id: 'from-cryptpad', label: t('tree.attachMenu'), icon: 'cloud' }]);
 
     if(settings().StoreDangerous && await config('allowPersistentKeys') === true && locked){
       console.log('Restoring keys from dangerous storage', locked);
