@@ -3,8 +3,9 @@
 // message at the caret as the link block, where the user sees and edits them
 // like any text (one Ctrl+Z takes them out again).
 
-import { type ShareLinkItem, type TranslateFn, linkBlock } from './links.ts';
+import { linkBlock } from './links.ts';
 import host from '@plugin-host';
+import { ApplyPickerResultSummary, ShareLinkItem } from './types.ts';
 
 export type CryptPadPickerResult =
   | null
@@ -14,9 +15,6 @@ export type CryptPadPickerResult =
       links: ShareLinkItem[];
     };
 
-export interface ApplyPickerResultSummary {
-  links: number;
-}
 
 export async function applyPickerResult(
   result: CryptPadPickerResult,

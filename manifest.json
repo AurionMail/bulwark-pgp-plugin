@@ -398,7 +398,11 @@
       "prompt.export_private_key.message" : "Export your private key as an armored encrypted PGP key",
       "settings.success.private_key_exported": "Private key exported successfully!",
       "settings.error.private_key_export_failed": "Private key export failed.",
-      "settings.action.download_private_key" : "Download private key (.asc)"
+      "settings.action.download_private_key" : "Download private key (.asc)",
+      "tree.picker.title" : "Share files from Cryptpad",
+      "tree.links.title" : "Cryptpad links",
+      "tree.links.readOnly" : "Read-only",
+      "tree.links.readWrite" : "Read-write"
     }
   }
 }

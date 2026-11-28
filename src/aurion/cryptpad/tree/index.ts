@@ -3,18 +3,10 @@
 // selected share links (read/write href or read-only roHref).
 import host from '@plugin-host';
 import {
-  type ApplyPickerResultSummary,
   applyPickerResult,
 } from './results.ts';
-import type { CryptPadDrive } from './reader.ts';
 import { config } from '../../../shared.ts';
-
-export interface OpenDialogOptions {
-  title: string;
-  slot: string;
-  extraProps?: Record<string, unknown>;
-  width?: number;
-}
+import { ApplyPickerResultSummary, CryptPadDrive } from './types.ts';
 
 
 export async function shareLinksFromCryptPad(
@@ -24,7 +16,7 @@ export async function shareLinksFromCryptPad(
     return { links: 0 };
   }
   const result = await host.ui.openDialog({
-    title: host.i18n.t('picker.title'),
+    title: host.i18n.t('tree.picker.title'),
     slot: 'plugin-dialog',
     extraProps:  {
       composerId,

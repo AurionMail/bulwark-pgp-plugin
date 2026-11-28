@@ -16,12 +16,11 @@ import {
 import {
   type CryptPadAccessMode,
   type CryptPadAccessModesMap,
-  type CryptPadDrive,
-  type CryptPadFileItem,
   type CryptPadShareLink,
   buildCryptPadShareLinks,
   indexCryptPadDrive,
 } from './reader.ts';
+import { CryptPadDrive, CryptPadFileItem } from './types.ts';
 
 const LAST_PATH_KEY = 'cryptpadPickerPath';
 

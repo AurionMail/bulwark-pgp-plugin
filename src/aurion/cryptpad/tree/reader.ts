@@ -1,52 +1,17 @@
 // lib/cryptpad-drive.ts
 
-export interface CryptPadFileMeta {
-  title?: string;
-  fileType?: string;
-  href?: string;
-  roHref?: string;
-  channel?: string;
-  ctime?: number;
-  atime?: number;
-  owners?: string[];
-}
+import { CryptPadDrive, CryptPadFileItem, CryptPadTreeNode } from "./types.ts";
 
-export type CryptPadTreeNode = {
-  [key: string]: number | string | CryptPadTreeNode;
-};
-
-export interface CryptPadDrive {
-  root?: CryptPadTreeNode;
-  filesData?: Record<string, CryptPadFileMeta>;
-  sharedFolders?: Record<string, unknown>;
-  sharedFoldersTemp?: Record<string, unknown>;
-  static?: Record<string, unknown>;
-  template?: unknown[];
-  trash?: Record<string, unknown>;
-}
-
-export interface CryptPadDrivePayload {
+interface CryptPadDrivePayload {
   drive?: CryptPadDrive;
 }
 
-export interface CryptPadFolderItem {
+interface CryptPadFolderItem {
   name: string;
   path: string;
 }
 
-export interface CryptPadFileItem {
-  id: string;
-  name: string;
-  path: string; // clé unique : `${folderPath}/${name}#${id}`
-  fileType: string;
-  ctime?: number;
-  atime?: number;
-  href: string;
-  roHref: string;
-  hasReadOnly: boolean;
-}
-
-export interface CryptPadFolderListing {
+interface CryptPadFolderListing {
   folders: CryptPadFolderItem[];
   files: CryptPadFileItem[];
 }
