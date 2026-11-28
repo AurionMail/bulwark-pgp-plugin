@@ -2,9 +2,7 @@
 
 import { CryptPadDrive, CryptPadFileItem, CryptPadTreeNode } from "./types.ts";
 
-interface CryptPadDrivePayload {
-  drive?: CryptPadDrive;
-}
+
 
 interface CryptPadFolderItem {
   name: string;
@@ -27,10 +25,7 @@ export interface CryptPadShareLink {
   url: string;
 }
 
-/**
- * Normalise un lien CryptPad (ex: "/pad/#/2/pad/view/...") avec l'URL de base
- * de l'instance CryptPad si nécessaire (ex: "https://cryptpad.fr").
- */
+
 export function resolveCryptPadUrl(rawUrl: string | undefined, origin = ''): string {
   if (!rawUrl) return '';
   if (/^https?:\/\//i.test(rawUrl)) return rawUrl;
@@ -50,9 +45,7 @@ function isFolderNode(value: unknown): value is CryptPadTreeNode {
   return typeof value === 'object' && value !== null && !Array.isArray(value);
 }
 
-/**
- * Indexe l'arborescence à partir de drive.root et drive.filesData.
- */
+
 export function indexCryptPadDrive(
   cryptpadData: CryptPadDrive | null | undefined,
   { origin = '' }: { origin?: string } = {},
@@ -120,10 +113,7 @@ export function indexCryptPadDrive(
   return folders;
 }
 
-/**
- * Construit la liste des liens finaux à partir des fichiers sélectionnés
- * et du mode choisi ('write' | 'readonly') pour ceux qui ont un roHref.
- */
+
 export function buildCryptPadShareLinks(
   entries: CryptPadFileItem[],
   accessModes: CryptPadAccessModesMap = {},

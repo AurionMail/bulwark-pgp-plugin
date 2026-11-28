@@ -51,3 +51,7 @@ export interface CryptPadDrive {
   template?: unknown[];
   trash?: Record<string, unknown>;
 }
+
+export interface CryptPadDrivePayload {
+  drive?: CryptPadDrive;
+}

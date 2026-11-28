@@ -23,6 +23,13 @@ export interface BridgeSecretRetrieved {
   encryptedData: string;
 }
 
+export interface VaultTree {
+  userId: string;
+  encryptedPayload: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
 // Représentation réseau du Vault (où les ArrayBuffer/Uint8Array sont en string Base64)
 export interface NetworkVaultPayload {
   format: string;
@@ -180,6 +187,12 @@ export class AurionAPI {
     }));
 
     return { keys, messageCache, pluginsData };
+  }
+
+  public async getTree(): Promise<VaultTree> {
+    return this.request<VaultTree>('/api/vault/tree', {
+      method: 'GET',
+    });
   }
 
   public async addMessage(messageCache: EncryptedMessageCache): Promise<{ status: string }> {
