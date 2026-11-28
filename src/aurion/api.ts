@@ -1,5 +1,5 @@
 import { KeyRecord, EncryptedMessageCache } from '../storage.ts';
-import { bufferToBase64, base64ToBuffer } from '../util.ts';
+import { bufferToBase64, base64ToBuffer, getCurrentAccountId } from '../util.ts';
 import host from '@plugin-host';
 
 export interface AuthUser {
@@ -21,6 +21,13 @@ export interface BridgeSecretCreated {
 export interface BridgeSecretRetrieved {
   id: string;
   encryptedData: string;
+}
+
+export interface VaultTree {
+  userId: string;
+  encryptedPayload: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 // Représentation réseau du Vault (où les ArrayBuffer/Uint8Array sont en string Base64)
@@ -173,9 +180,19 @@ export class AurionAPI {
       encryptedPayload: base64ToUint8Array(m.encryptedPayload),
       iv: base64ToUint8Array(m.iv),
     }));
-    const pluginsData: { id: string; data: any; accountId: string;}[] = data.pluginsData || []
+
+    const pluginsData: { id: string; data: any; accountId: string;}[] = (data.pluginsData || []).map((m: { id: string; data: any;}) => ({
+      ...m,
+      accountId: m.id.split('___')[1] || '',
+    }));
 
     return { keys, messageCache, pluginsData };
+  }
+
+  public async getTree(): Promise<VaultTree> {
+    return this.request<VaultTree>('/api/vault/tree', {
+      method: 'GET',
+    });
   }
 
   public async addMessage(messageCache: EncryptedMessageCache): Promise<{ status: string }> {

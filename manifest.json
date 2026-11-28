@@ -29,7 +29,8 @@
     "account:read",
     "identity:read",
     "ui:contact-cryptokeys",
-    "auth:emit"
+    "auth:emit",
+    "compose:write"
   ],
   "httpOrigins": [
     "https://keys.openpgp.org",
@@ -397,7 +398,18 @@
       "prompt.export_private_key.message" : "Export your private key as an armored encrypted PGP key",
       "settings.success.private_key_exported": "Private key exported successfully!",
       "settings.error.private_key_export_failed": "Private key export failed.",
-      "settings.action.download_private_key" : "Download private key (.asc)"
+      "settings.action.download_private_key" : "Download private key (.asc)",
+      "tree.picker.title" : "Share files from Cryptpad",
+      "tree.links.title" : "Cryptpad links",
+      "tree.links.readOnly" : "Read-only",
+      "tree.links.readWrite" : "Read-write",
+      "tree.picker.cancel" : "Cancel",
+      "tree.picker.shareLinks" : "Share links",
+      "tree.picker.sharing" : "Generating links...",
+      "tree.picker.selected" : " file(s) selected",
+      "tree.picker.selectFiles" : "Select one or more files to generate a share link.",
+      "tree.attachMenu" : "Attach from Cryptpad",
+      "tree.picker.parentFolder" : "Parent folder"
     }
   }
 }

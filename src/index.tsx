@@ -23,6 +23,8 @@ import {onBeforeEmailSend} from './hooks/onBeforeEmailSend.ts';
 import { activateAurionAPI } from './aurion/utils.ts';
 import { Navbar } from './aurion/cryptpad/navRailBottom.tsx';
 import { onBeforeLogout } from './aurion/onBeforeLogout.ts';
+import { shareLinksFromCryptPad } from './aurion/cryptpad/tree/index.ts';
+import { PluginDialog } from './aurion/cryptpad/tree/dialog.ts';
 
 
 // ─── Privileged-tier capability probe ─────────────────────────────────
@@ -76,6 +78,7 @@ export const hooks = {
   onBeforeComposeOpenToReplyAll,
   onBeforeComposeOpenToForward,
   onBeforeEmailSend,
+  onAction: (payload:any) => (onAction(payload)),
 };
 
 function shouldShow(extraProps: any) {
@@ -94,7 +97,8 @@ export const slots = {
     shouldShow,
     order: 60
   },
-  'navigation-rail-bottom': { component: Navbar, order: 70 }
+  'navigation-rail-bottom': { component: Navbar, order: 70 },
+  'plugin-dialog': { component: PluginDialog },
 };
 
 export async function activate(api :any) {
@@ -109,6 +113,8 @@ export async function activate(api :any) {
   initBackgroundSessionListener();
 
   locked = await activateAurionAPI();
+  const t = api.i18n.t;
+  await api.ui.setActions('composer-attach-menu', [{ id: 'from-cryptpad', label: t('tree.attachMenu'), icon: 'cloud' }]);
 
     if(settings().StoreDangerous && await config('allowPersistentKeys') === true && locked){
       console.log('Restoring keys from dangerous storage', locked);
@@ -136,4 +142,8 @@ export async function activate(api :any) {
       api.log.error('Error during passphrase prompt:', err);
     });
   }
+}
+
+export async function onAction({ surface, actionId, context } = {} as any) {
+    await shareLinksFromCryptPad(context?.composerId);
 }
