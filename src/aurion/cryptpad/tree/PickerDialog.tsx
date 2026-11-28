@@ -329,7 +329,7 @@ export function PickerDialog({
   const navigate = (nextPath: string): void => {
     const target = tree.has(nextPath) ? nextPath : '/';
     setPath(target);
-    void host.storage?.set(LAST_PATH_KEY, target).catch(() => {});
+    //void host.storage?.set(LAST_PATH_KEY, target).catch(() => {}); Removed for security : it is written unecnrypted on disk
   };
 
   const goParent = (): void => {
@@ -413,8 +413,8 @@ export function PickerDialog({
           style: pickerStyles.backBtn(isBackDisabled),
           disabled: isBackDisabled,
           onClick: goParent,
-          'aria-label': 'Dossier parent',
-          title: 'Dossier parent',
+          'aria-label': t('tree.picker.parentFolder'),
+          title: t('tree.picker.parentFolder'),
         },
         h(
           'svg',

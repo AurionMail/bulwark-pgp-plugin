@@ -408,7 +408,8 @@
       "tree.picker.sharing" : "Generating links...",
       "tree.picker.selected" : " file(s) selected",
       "tree.picker.selectFiles" : "Select one or more files to generate a share link.",
-      "tree.attachMenu" : "Attach from Cryptpad"
+      "tree.attachMenu" : "Attach from Cryptpad",
+      "tree.picker.parentFolder" : "Parent folder"
     }
   }
 }
